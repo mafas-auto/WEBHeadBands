@@ -30,7 +30,15 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,ico,png,svg,webmanifest}'],
+        globIgnores: ['**/index.html'], // Don't precache HTML
         runtimeCaching: [
+          {
+            urlPattern: /\/index\.html$/,
+            handler: 'NetworkOnly', // Always fetch HTML from network, never cache
+            options: {
+              cacheName: 'html-cache'
+            }
+          },
           {
             urlPattern: /^https:\/\/.*\.js$/,
             handler: 'CacheFirst',
@@ -50,17 +58,6 @@ export default defineConfig({
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-              }
-            }
-          },
-          {
-            urlPattern: /\/index\.html$/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'html-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 // 1 day
               }
             }
           }

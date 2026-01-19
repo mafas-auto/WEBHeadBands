@@ -1,7 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { generateAIDeck } from '../services/aiDeckGenerator'
 import { saveCustomDeck } from '../data/decks'
+import { 
+  getPromptCount, 
+  incrementPromptCount, 
+  hasReachedLimit, 
+  getRemainingPrompts,
+  MAX_PROMPTS_PER_SESSION 
+} from '../utils/sessionLimiter'
 
 export default function AIDeckScreen() {
   const navigate = useNavigate()
@@ -9,10 +16,24 @@ export default function AIDeckScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [generatedDeck, setGeneratedDeck] = useState(null)
+  const [promptCount, setPromptCount] = useState(0)
+  const [remainingPrompts, setRemainingPrompts] = useState(MAX_PROMPTS_PER_SESSION)
+
+  // Load prompt count on mount
+  useEffect(() => {
+    setPromptCount(getPromptCount())
+    setRemainingPrompts(getRemainingPrompts())
+  }, [])
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
       setError('Please enter a theme or description')
+      return
+    }
+
+    // Check session limit
+    if (hasReachedLimit()) {
+      setError(`You've reached the limit of ${MAX_PROMPTS_PER_SESSION} AI deck generations per session. Please refresh the page to start a new session.`)
       return
     }
 
@@ -24,6 +45,11 @@ export default function AIDeckScreen() {
       // API key is now handled server-side - no need to pass it from client
       const deck = await generateAIDeck(prompt)
       setGeneratedDeck(deck)
+      
+      // Increment prompt count after successful generation
+      const newCount = incrementPromptCount()
+      setPromptCount(newCount)
+      setRemainingPrompts(getRemainingPrompts())
     } catch (err) {
       setError(err.message || 'Failed to generate deck. Please try again.')
       console.error('AI Deck Generation Error:', err)
@@ -35,6 +61,7 @@ export default function AIDeckScreen() {
   const handleSave = () => {
     if (!generatedDeck) return
 
+    // Save to localStorage (persists across sessions)
     saveCustomDeck(generatedDeck)
     alert('Deck saved successfully!')
     navigate('/')
@@ -55,9 +82,18 @@ export default function AIDeckScreen() {
           ← Back to Home
         </button>
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">AI Deck Creator</h1>
-        <p className="text-sm sm:text-base text-gray-400">
+        <p className="text-sm sm:text-base text-gray-400 mb-2">
           Describe a theme and AI will create a 25-card deck for you
         </p>
+        <div className="bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg px-3 py-2 text-sm">
+          <span className="text-blue-200">
+            {remainingPrompts > 0 ? (
+              <>Remaining: <strong>{remainingPrompts}</strong> of {MAX_PROMPTS_PER_SESSION} generations this session</>
+            ) : (
+              <>Limit reached: {MAX_PROMPTS_PER_SESSION}/{MAX_PROMPTS_PER_SESSION} generations used</>
+            )}
+          </span>
+        </div>
       </header>
 
       {!generatedDeck ? (
@@ -87,7 +123,7 @@ export default function AIDeckScreen() {
           <div className="flex gap-3 sm:gap-4">
             <button
               onClick={handleGenerate}
-              disabled={loading || !prompt.trim()}
+              disabled={loading || !prompt.trim() || hasReachedLimit()}
               className="flex-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-700 disabled:text-gray-400 text-white font-bold py-3 sm:py-4 px-6 rounded-lg text-base sm:text-lg active:scale-95 transition-all touch-manipulation min-h-[44px] disabled:cursor-not-allowed"
             >
               {loading ? (

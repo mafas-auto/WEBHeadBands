@@ -73,7 +73,7 @@ export default function GameEngine() {
     tiltEnabled
   )
   
-  const { requestPermission, calibrate, hasPermission } = tiltHook
+  const { requestPermission, calibrate, hasPermission, beta, gamma, neutralBeta, neutralGamma } = tiltHook
 
   useEffect(() => {
     if (state.status === 'idle' && state.currentDeck) {
@@ -192,24 +192,35 @@ export default function GameEngine() {
             screen.msLockOrientation('landscape')
           }
         } catch (error) {
-          console.log('Orientation lock not available:', error)
+          // Orientation lock not available on this device - silently fail
+          // This is expected on many devices
         }
       }
 
       lockOrientation()
     } else if (state.status === 'finished' || state.status === 'idle') {
-      // Exit fullscreen when game ends
-      try {
-        if (document.exitFullscreen) {
-          document.exitFullscreen()
-        } else if (document.webkitExitFullscreen) {
-          document.webkitExitFullscreen()
-        } else if (document.msExitFullscreen) {
-          document.msExitFullscreen()
+      // Exit fullscreen when game ends (only if we're actually in fullscreen)
+      const exitFullscreen = async () => {
+        const isFullscreen = document.fullscreenElement || 
+                            document.webkitFullscreenElement || 
+                            document.msFullscreenElement
+        
+        if (isFullscreen) {
+          try {
+            if (document.exitFullscreen) {
+              await document.exitFullscreen()
+            } else if (document.webkitExitFullscreen) {
+              await document.webkitExitFullscreen()
+            } else if (document.msExitFullscreen) {
+              await document.msExitFullscreen()
+            }
+          } catch (error) {
+            // Ignore errors - might not be in fullscreen
+          }
         }
-      } catch (error) {
-        // Ignore errors
       }
+
+      exitFullscreen()
     }
   }, [state.status])
 
@@ -311,7 +322,12 @@ export default function GameEngine() {
         isPaused={state.status === 'paused'}
       />
       {showDebug && state.status === 'playing' && (
-        <TiltDebug enabled={true} />
+        <TiltDebug 
+          beta={beta}
+          gamma={gamma}
+          neutralBeta={neutralBeta}
+          neutralGamma={neutralGamma}
+        />
       )}
     </div>
   )

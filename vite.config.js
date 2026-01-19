@@ -16,7 +16,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'Forehead Charades',
         short_name: 'Charades',
@@ -26,23 +26,30 @@ export default defineConfig({
         display: 'standalone',
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: '/pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'
           },
           {
-            src: 'pwa-512x512.png',
+            src: '/pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'
           }
         ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,ico,png,svg,webmanifest}'],
-        globIgnores: ['**/index.html'], // Don't precache HTML
+        globIgnores: ['**/index.html', 'index.html', '**/sw.js', '**/workbox-*.js'], // Don't precache HTML or service worker files
+        navigateFallback: null, // Disable default navigation handler
         runtimeCaching: [
           {
-            urlPattern: /\/index\.html$/,
+            urlPattern: ({ request, url }) => {
+              return request.destination === 'document' || 
+                     url.pathname === '/index.html' || 
+                     url.pathname === '/'
+            },
             handler: 'NetworkOnly', // Always fetch HTML from network, never cache
             options: {
               cacheName: 'html-cache'

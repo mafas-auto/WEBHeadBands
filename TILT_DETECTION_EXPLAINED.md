@@ -4,6 +4,32 @@
 
 The game uses the **Device Orientation API** to detect when you tilt your phone forward (CORRECT) or backward (PASS) while it's on your forehead in landscape mode.
 
+**⚠️ CRITICAL: This implementation uses a hybrid Gamma/Beta approach to handle Gimbal Lock.**
+
+---
+
+## The Gimbal Lock Problem
+
+When the phone is perfectly vertical in landscape mode on your forehead, we encounter a mathematical problem called **Gimbal Lock**:
+
+- **Gamma (γ)** is clamped at **-90°** and cannot go lower
+- When you tilt your head down past vertical, the browser **flips Beta (β) upside down** instead of changing Gamma
+- This means we **cannot rely on Beta alone** for both directions
+
+### The Physics
+
+**Neutral Position (Forehead):**
+- γ ≈ **-90°** (clamped at minimum)
+- β ≈ **0°** (vertical)
+
+**Look Up (PASS):**
+- γ moves from **-90° towards 0°** (screen faces ceiling)
+- β stays near 0°
+
+**Look Down (CORRECT):**
+- γ stays at **-90°** (cannot go lower)
+- β **flips to ~180°** (screen faces floor)
+
 ---
 
 ## Device Orientation API Basics
@@ -11,88 +37,77 @@ The game uses the **Device Orientation API** to detect when you tilt your phone 
 ### The Three Angles
 
 The API provides three rotation angles:
-- **Alpha (γ)**: Rotation around Z-axis (compass direction) - 0° to 360°
-- **Beta (β)**: Front-to-back tilt - **-180° to 180°** ← **WE USE THIS**
-- **Gamma (γ)**: Left-to-right tilt - -90° to 90°
+- **Alpha (α)**: Rotation around Z-axis (compass direction) - 0° to 360°
+- **Beta (β)**: Front-to-back tilt - **-180° to 180°** ← **WE USE FOR CORRECT**
+- **Gamma (γ)**: Left-to-right tilt - **-90° to 90°** ← **WE USE FOR PASS**
 
 ### Beta Angle Explained
 
 **Beta (β)** measures the **front-to-back tilt** of your device:
 
 ```
-Beta = 0°     → Phone is flat (horizontal)
-Beta = 90°    → Phone is vertical, screen facing up
-Beta = -90°   → Phone is vertical, screen facing down
-Beta = 180°   → Phone is upside down
+Beta = 0°     → Phone is vertical
+Beta = 90°    → Phone is horizontal, screen facing up
+Beta = -90°   → Phone is horizontal, screen facing down
+Beta = 180°   → Phone is upside down (flipped past vertical)
 ```
 
 **Range:** -180° to +180° (continuous)
 
----
+### Gamma Angle Explained
 
-## How It Works in Landscape Mode on Forehead
-
-### Physical Setup
-- Phone is in **landscape mode** (horizontal)
-- Placed on **forehead** (screen facing away from you)
-- You tilt your **head** (not the phone)
-
-### Beta Behavior in This Position
-
-When phone is on forehead in landscape:
+**Gamma (γ)** measures the **left-to-right tilt** of your device:
 
 ```
-Initial Position (calibrated):
-  Beta ≈ 0° to 30° (depending on head angle)
-
-Forward Tilt (chin down):
-  Beta DECREASES (becomes more negative)
-  Example: 20° → -15° (difference = -35°)
-
-Backward Tilt (chin up):
-  Beta INCREASES (becomes more positive)
-  Example: 20° → 60° (difference = +40°)
+Gamma = -90°  → Phone is vertical (clamped minimum)
+Gamma = 0°    → Phone is horizontal
+Gamma = 90°   → Phone is vertical (clamped maximum)
 ```
+
+**Range:** -90° to +90° (clamped)
 
 ---
 
-## Current Implementation
+## Hybrid Implementation
 
 ### 1. Calibration Phase
 
 ```javascript
 // On first reading, store the "neutral" position
 if (neutralBeta.current === null && beta !== null) {
-  neutralBeta.current = beta  // e.g., 20°
+  neutralBeta.current = beta      // e.g., 0°
+  neutralGamma.current = gamma    // e.g., -90°
   setCalibrated(true)
   return  // Don't detect tilts yet
 }
 ```
 
 **What happens:**
-- When game starts, first beta reading becomes the "zero point"
+- When game starts, first beta and gamma readings become the "zero point"
 - This accounts for different head angles and phone positions
-- Example: If your head is tilted 20°, that becomes the baseline
+- Example: If your head is at β=0°, γ=-90°, that becomes the baseline
 
-### 2. Tilt Detection Phase
+### 2. Tilt Detection Phase (Hybrid Approach)
 
 ```javascript
-const tiltDifference = beta - neutralBeta.current
-
-// Forward tilt (chin down) = CORRECT
-if (tiltDifference < -35) {
-  onCorrect()  // Trigger CORRECT
+// 1. PASS: You look up at the ceiling
+// Gamma moves from -90 towards 0.
+// Threshold: If gamma is flatter than -50 degrees
+if (gamma > -50 && gamma < 0) {
+  onPass()  // Trigger PASS
 }
 
-// Backward tilt (chin up) = PASS
-if (tiltDifference > 40) {
-  onPass()  // Trigger PASS
+// 2. CORRECT: You look down at the floor
+// Gamma gets stuck at -90, but Beta flips to +/- 180 when screen faces down.
+// Threshold: If Beta is upside down (greater than 140 or less than -140)
+if (Math.abs(beta) > 140) {
+  onCorrect()  // Trigger CORRECT
 }
 ```
 
 **Current Thresholds:**
-- **CORRECT**: Tilt forward by **35° or more** (beta decreases)
-- **PASS**: Tilt backward by **40° or more** (beta increases)
+- **PASS**: Gamma > **-50°** (gamma moves from -90° towards 0°)
+- **CORRECT**: |Beta| > **140°** (beta flips to ~180° when looking down)
 
 ### 3. Cooldown System
 
@@ -101,196 +116,123 @@ const cooldownMs = 1000  // 1 second between tilts
 if (now - lastTiltTime.current < cooldownMs) return
 ```
 
-**Purpose:** Prevents multiple triggers from a single tilt movement
+**Purpose:** Prevents rapid-fire triggers from sensor noise or shaky hands.
 
 ---
 
-## The Math
+## Testing with Chrome DevTools
 
-### Example Scenario
+You can simulate tilt detection in Chrome DevTools:
 
-**Initial calibration:**
-- Phone on forehead, head at 20° angle
-- `neutralBeta = 20°`
+1. Open Chrome DevTools (F12)
+2. Go to **More Tools** → **Sensors**
+3. Select **Custom orientation** (NOT "Landscape Left" preset)
+4. Enter these values to test:
 
-**User tilts forward (chin down):**
-- Beta changes: `20° → -10°`
-- Difference: `-10° - 20° = -30°`
-- **Not enough** (need -35°), so no trigger
-
-**User tilts more:**
-- Beta changes: `20° → -20°`
-- Difference: `-20° - 20° = -40°`
-- **Triggers CORRECT!** ✓
-
-**User tilts backward (chin up):**
-- Beta changes: `20° → 65°`
-- Difference: `65° - 20° = +45°`
-- **Triggers PASS!** ✓
-
----
-
-## Current Issues & Potential Problems
-
-### 1. **Threshold Sensitivity**
-- **-35° for CORRECT** might be too strict
-- **+40° for PASS** might be too strict
-- Users might not tilt enough to trigger
-
-### 2. **Calibration Timing**
-- Calibration happens immediately when game starts
-- If user moves during calibration, baseline is wrong
-- No visual feedback during calibration
-
-### 3. **Beta Angle Variability**
-- Beta can be noisy/jumpy
-- Small movements might trigger false positives
-- Need smoothing/filtering?
-
-### 4. **Orientation Dependencies**
-- Beta behavior changes if phone orientation changes
-- Landscape left vs landscape right might differ
-- Screen rotation affects beta interpretation
-
-### 5. **Device Differences**
-- Different phones have different sensor accuracy
-- Some devices have more noise than others
-- Calibration might need device-specific tuning
-
----
-
-## Coordinate System Visualization
-
+### Scenario A: Neutral (Start)
 ```
-        Phone on Forehead (Landscape)
-        
-        ┌─────────────┐
-        │             │  ← Screen (facing away)
-        │   [CARD]    │
-        └─────────────┘
-           ↑
-        Your Head
-    
-    Beta = 0° (flat)
-    
-    Forward Tilt (chin down):
-        ┌─────────────┐
-        │             │  ← Screen tilts up
-        │   [CARD]    │     Beta DECREASES
-        └─────────────┘
-         ↑
-      Head tilts
-    
-    Backward Tilt (chin up):
-        ┌─────────────┐
-        │             │  ← Screen tilts down
-        │   [CARD]    │     Beta INCREASES
-        └─────────────┘
-           ↑
-        Head tilts
+α: 90
+β: 0
+γ: -90
 ```
+**Result:** Phone is vertical on forehead. Status: Neutral
+
+### Scenario B: PASS (Look Up)
+```
+α: 90
+β: 0
+γ: -45  ← Change this value!
+```
+**Result:** Phone is tilted back. Status: **PASS** (γ > -50)
+
+### Scenario C: CORRECT (Look Down)
+```
+α: 90
+β: 170  ← Change this value!
+γ: -90
+```
+**Result:** Phone is facing the floor. Status: **CORRECT** (|β| > 140)
 
 ---
 
-## What We Can Adjust
+## Code Location
 
-### 1. **Thresholds**
+The tilt detection logic is in:
+- **Hook:** `src/hooks/useTiltDetection.js`
+- **Debug Component:** `src/components/TiltDebug.jsx`
+- **Usage:** `src/components/GameEngine.jsx`
+
+---
+
+## Debug Mode
+
+To see real-time tilt values:
+
+1. Add `?debug=true` to your URL (e.g., `https://headbands.filipmateja.cz/game?debug=true`)
+2. The debug panel shows:
+   - Current Beta (β) value
+   - Current Gamma (γ) value
+   - Neutral Beta and Gamma
+   - Current status (CORRECT/PASS/Neutral)
+   - Visual indicators when thresholds are met
+
+---
+
+## Potential Issues & Adjustments
+
+### 1. Thresholds Too Strict/Loose
+- **Problem:** Actions don't trigger or trigger too easily
+- **Solution:** Adjust thresholds in `useTiltDetection.js`:
+  - PASS: Change `-50` to `-40` (more sensitive) or `-60` (less sensitive)
+  - CORRECT: Change `140` to `130` (more sensitive) or `150` (less sensitive)
+
+### 2. Calibration Issues
+- **Problem:** Neutral position captured while moving
+- **Solution:** Add a delay or averaging window before calibration
+
+### 3. Sensor Noise
+- **Problem:** False triggers from shaky hands
+- **Solution:** 
+  - Increase cooldown time
+  - Add smoothing/averaging to readings
+  - Require threshold to be held for a duration
+
+### 4. Device Differences
+- **Problem:** Different devices behave differently
+- **Solution:** Test on multiple devices and adjust thresholds per device type
+
+---
+
+## Technical Details
+
+### Event Listener
+
 ```javascript
-// Make more sensitive (easier to trigger)
-if (tiltDifference < -25) {  // Was -35
-  onCorrect()
-}
-
-// Make less sensitive (harder to trigger)
-if (tiltDifference < -45) {  // Was -35
-  onCorrect()
-}
+window.addEventListener('deviceorientation', handleOrientation)
 ```
 
-### 2. **Calibration**
-- Add delay before calibration starts
-- Show "Hold still" message
-- Average multiple readings for baseline
-- Allow manual recalibration
+**Frequency:** ~60Hz (device dependent)
 
-### 3. **Smoothing**
-- Average last N readings to reduce noise
-- Use exponential moving average
-- Filter out small movements
+### Permission (iOS 13+)
 
-### 4. **Visual Feedback**
-- Show current beta value (debug mode)
-- Show tilt direction indicator
-- Show calibration status
-
-### 5. **Cooldown**
-- Adjust cooldown time (currently 1 second)
-- Make it configurable
-- Different cooldown for correct vs pass
-
----
-
-## Testing & Debugging
-
-### To Test Tilt Detection:
-
-1. **Add debug logging:**
 ```javascript
-console.log('Beta:', beta, 'Neutral:', neutralBeta.current, 'Diff:', tiltDifference)
+if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+  const response = await DeviceOrientationEvent.requestPermission()
+  if (response === 'granted') {
+    // Can now listen to orientation events
+  }
+}
 ```
 
-2. **Visual indicator:**
-- Show current beta value on screen
-- Show tilt direction (forward/backward)
-- Show if threshold is met
-
-3. **Test different scenarios:**
-- Slow tilt vs fast tilt
-- Small tilt vs large tilt
-- Different head positions
-- Different phone orientations
+**Note:** Must be called from a user gesture (button click).
 
 ---
 
-## Common Issues
+## Summary
 
-### "Tilt only works backwards"
-- **Cause:** Threshold signs might be wrong
-- **Fix:** Swap the conditions or invert the difference
+The tilt detection uses a **hybrid Gamma/Beta approach** to handle gimbal lock:
 
-### "Too sensitive / triggers accidentally"
-- **Cause:** Thresholds too low, or noise in sensor
-- **Fix:** Increase thresholds, add smoothing
+- **PASS (Look Up):** Detected via **Gamma** moving from -90° towards 0°
+- **CORRECT (Look Down):** Detected via **Beta** flipping to ~180°
 
-### "Not sensitive enough / hard to trigger"
-- **Cause:** Thresholds too high
-- **Fix:** Decrease thresholds
-
-### "Works sometimes but not always"
-- **Cause:** Calibration baseline wrong, or orientation changed
-- **Fix:** Better calibration, re-calibrate on orientation change
-
----
-
-## Next Steps for Improvement
-
-1. **Add visual debugging** - Show beta values and tilt direction
-2. **Improve calibration** - Better baseline detection
-3. **Add smoothing** - Reduce noise in readings
-4. **Make thresholds adjustable** - Let users calibrate sensitivity
-5. **Better error handling** - Handle edge cases and sensor errors
-6. **Test on multiple devices** - Ensure it works across phones
-
----
-
-## Questions to Answer
-
-1. What threshold values work best for most users?
-2. Should we use absolute thresholds or relative to calibration?
-3. Do we need smoothing/filtering?
-4. Should calibration be automatic or user-initiated?
-5. How do we handle different phone orientations?
-6. Should we use beta alone or combine with gamma/alpha?
-
-Let me know what specific issues you're experiencing and we can fine-tune the system!
-
+This approach correctly handles the mathematical limitation where Gamma cannot go below -90° when the phone is vertical on your forehead.

@@ -4,10 +4,14 @@ export function useTiltDetection(onCorrect, onPass, enabled = true) {
   const [calibrated, setCalibrated] = useState(false)
   const [hasPermission, setHasPermission] = useState(false)
   const neutralBeta = useRef(null)
+  const neutralGamma = useRef(null)
   const lastTiltTime = useRef(0)
   const cooldownMs = 1000 // 1 second cooldown between tilts
   const onCorrectRef = useRef(onCorrect)
   const onPassRef = useRef(onPass)
+  // Expose current values for debugging (use state so components can react to changes)
+  const [currentBeta, setCurrentBeta] = useState(null)
+  const [currentGamma, setCurrentGamma] = useState(null)
 
   // Keep callbacks in refs to avoid stale closures
   useEffect(() => {
@@ -38,6 +42,7 @@ export function useTiltDetection(onCorrect, onPass, enabled = true) {
   const calibrate = () => {
     // Reset calibration on new game
     neutralBeta.current = null
+    neutralGamma.current = null
     setCalibrated(false)
   }
 
@@ -45,10 +50,16 @@ export function useTiltDetection(onCorrect, onPass, enabled = true) {
     if (!enabled || !hasPermission) return
 
     const beta = event.beta // Front-to-back tilt in degrees (-180 to 180)
+    const gamma = event.gamma // Left-right tilt in degrees (-90 to 90)
+    
+    // Store current values for debugging
+    setCurrentBeta(beta)
+    setCurrentGamma(gamma)
     
     // Calibrate on first reading
     if (neutralBeta.current === null && beta !== null && beta !== undefined) {
       neutralBeta.current = beta
+      neutralGamma.current = gamma !== null && gamma !== undefined ? gamma : -90
       setCalibrated(true)
       return
     }
@@ -58,25 +69,27 @@ export function useTiltDetection(onCorrect, onPass, enabled = true) {
     const now = Date.now()
     if (now - lastTiltTime.current < cooldownMs) return
 
-    const tiltDifference = beta - neutralBeta.current
-
+    // Hybrid approach to handle gimbal lock:
     // In landscape mode on forehead:
-    // Forward tilt (chin down, screen faces more upward) = CORRECT
-    // Backward tilt (chin up, screen faces more downward) = PASS
-    // Beta decreases when tilting forward (screen rotates up)
-    // Beta increases when tilting backward (screen rotates down)
-    
-    // Forward tilt (looking down) = CORRECT
-    if (tiltDifference < -35) {
+    // - Neutral: γ ≈ -90°, β ≈ 0°
+    // - PASS (Look Up): γ moves from -90° towards 0° (screen faces ceiling)
+    // - CORRECT (Look Down): γ stays at -90°, but β flips to ~180° (screen faces floor)
+
+    // 1. PASS: You look up at the ceiling
+    // Gamma moves from -90 towards 0.
+    // Threshold: If gamma is flatter than -50 degrees
+    if (gamma !== null && gamma !== undefined && gamma > -50 && gamma < 0) {
       lastTiltTime.current = now
-      onCorrectRef.current()
+      onPassRef.current()
       return
     }
 
-    // Backward tilt (looking up) = PASS
-    if (tiltDifference > 40) {
+    // 2. CORRECT: You look down at the floor
+    // Gamma gets stuck at -90, but Beta flips to +/- 180 when screen faces down.
+    // Threshold: If Beta is upside down (greater than 140 or less than -140)
+    if (beta !== null && beta !== undefined && Math.abs(beta) > 140) {
       lastTiltTime.current = now
-      onPassRef.current()
+      onCorrectRef.current()
       return
     }
   }, [enabled, hasPermission, calibrated])
@@ -95,6 +108,11 @@ export function useTiltDetection(onCorrect, onPass, enabled = true) {
     requestPermission,
     calibrate,
     hasPermission,
-    calibrated
+    calibrated,
+    // Expose current values for debugging
+    beta: currentBeta,
+    gamma: currentGamma,
+    neutralBeta: neutralBeta.current,
+    neutralGamma: neutralGamma.current
   }
 }

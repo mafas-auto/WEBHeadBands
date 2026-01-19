@@ -128,44 +128,73 @@ You need to set:
 ### Build Fails
 
 **Error: "Cannot find package.json"**
-- Make sure root directory is set to `server/`
+- Make sure root directory is set to `server/` in Railway settings
 - Or ensure `railway.json` is in `server/` directory
+- Check that `server/package.json` exists
 
 **Error: "Module not found"**
 - Check that all dependencies are in `server/package.json`
 - Railway runs `npm install` automatically
+- Verify `node_modules` is not in `.gitignore` (it shouldn't be)
+
+**Error: "Build failed"**
+- Check Railway logs for specific error messages
+- Verify Node.js version (18+) in `package.json` engines
+- Ensure all required files are committed to Git
 
 ### Server Won't Start
 
 **Error: "Port already in use"**
-- Railway assigns PORT automatically
-- Make sure your code uses `process.env.PORT || 3001`
+- Railway assigns `PORT` automatically
+- Make sure your code uses `process.env.PORT || 8080`
+- Don't hardcode port numbers
 
 **Error: "OPENAI_API_KEY not found"**
 - Check environment variables in Railway dashboard
 - Make sure variable name is exactly `OPENAI_API_KEY`
+- Verify variable is set for the correct environment (Production/Preview)
+
+**Error: "Application failed to respond"**
+- Check that server is listening on `0.0.0.0` (not `localhost`)
+- Verify `PORT` environment variable is being used
+- Check Railway logs for startup errors
 
 ### CORS Errors
 
 **Error: "CORS policy blocked"**
 - Check `ALLOWED_ORIGIN` environment variable
-- Make sure it matches your frontend URL exactly
-- Include `https://` in the URL
+- Make sure it matches your frontend URL exactly (including `https://`)
+- Verify CORS middleware is configured in `server.js`
 
 ### API Not Responding
 
 1. **Check logs:**
    - Go to Railway dashboard → Deployments → View Logs
-   - Look for errors
+   - Look for errors or warnings
+   - Check if server started successfully
 
 2. **Test health endpoint:**
    ```bash
    curl https://your-url.railway.app/health
    ```
+   Should return: `{"status":"ok","timestamp":"..."}`
 
 3. **Check environment variables:**
    - Make sure all required variables are set
-   - Check for typos
+   - Check for typos in variable names
+   - Verify values are correct (no extra spaces)
+
+4. **Check public URL:**
+   - Go to Settings → Networking → Domains
+   - Copy the public domain URL
+   - Use this URL in `VITE_API_BASE_URL`
+
+### Getting Public URL
+
+- Railway provides public URL automatically
+- Find it in: **Settings → Networking → Domains → Public Domain**
+- Format: `your-project.up.railway.app`
+- Update `VITE_API_BASE_URL` in Cloudflare Pages with this URL
 
 ## Railway Features
 

@@ -2,18 +2,18 @@
 
 A web-based "Heads Up" style game where players place their phone on their forehead and tilt it to guess words. Built with React, Vite, and Tailwind CSS.
 
-## Features
+## 🎮 Features
 
-- 🎮 Multiple pre-built decks (Animals, Movies, Food, Actions, Objects)
-- ✏️ Create and save custom decks
-- 📱 Tilt detection using device orientation API
-- ⏱️ 60-second timer with visual countdown
-- 🎯 Manual controls for accessibility
-- 📱 PWA support for offline play
-- 🔄 Orientation lock detection
-- 🎨 Smooth animations and feedback
+- **5 Free Decks**: Pre-built decks (Animals, Movies, Food, Actions, Objects)
+- **AI Deck Generation**: Create custom decks using AI (limited for free users)
+- **Custom Decks**: Manually create and save your own decks
+- **Tilt Detection**: Use device orientation API for hands-free gameplay
+- **60-Second Timer**: Visual countdown with score tracking
+- **Manual Controls**: Button controls for accessibility
+- **PWA Support**: Install as app, works offline
+- **Party Pass**: Premium feature for unlimited AI deck generation ($4.99/year)
 
-## Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 
@@ -21,17 +21,23 @@ A web-based "Heads Up" style game where players place their phone on their foreh
 
 ### Installation
 
-1. Install dependencies:
+1. Clone the repository:
+```bash
+git clone <your-repo-url>
+cd Webheadbands
+```
+
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-2. Start the development server:
+3. Start the development server:
 ```bash
 npm run dev
 ```
 
-3. Open your browser to the local URL (usually `http://localhost:5173`)
+4. Open your browser to `http://localhost:5173`
 
 ### Building for Production
 
@@ -39,103 +45,182 @@ npm run dev
 npm run build
 ```
 
-The built files will be in the `dist` directory, ready for deployment to Cloudflare Pages.
+The built files will be in the `dist` directory.
 
-## Environment Variables
+## 📁 Project Structure
 
-For local development, copy `.env.example` to `.env.local` and add your credentials.
+```
+Webheadbands/
+├── src/                    # Frontend React app
+│   ├── components/         # React components
+│   ├── screens/           # Screen components
+│   ├── services/          # API services
+│   ├── utils/             # Utility functions
+│   └── hooks/             # Custom React hooks
+├── server/                # Backend API server
+│   ├── server.js          # Express server
+│   └── supabase-schema.sql # Database schema
+├── public/                # Static assets
+└── dist/                  # Build output
+```
 
-For Cloudflare Pages deployment, set environment variables in:
-**Cloudflare Dashboard → Pages → Your Project → Settings → Environment Variables**
+## 🔧 Configuration
 
-See `DEPLOYMENT.md` for detailed instructions.
+### Frontend Environment Variables
 
-**Important:** All client-side environment variables must be prefixed with `VITE_`
+Create `.env.local` in the root directory:
 
-## Deployment to Cloudflare Pages
+```env
+VITE_API_BASE_URL=http://localhost:3001
+```
 
-**📖 New to Vite?** See [VITE_DEPLOYMENT_GUIDE.md](./VITE_DEPLOYMENT_GUIDE.md) for a complete beginner-friendly guide.
+For production, set in Cloudflare Pages:
+- **Settings → Environment Variables → Production**
 
-### Option 1: Direct Upload (Quickest)
+### Backend Environment Variables
 
-1. Build the project:
-   ```bash
-   npm run build
-   ```
+Create `server/.env`:
 
-2. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) → Pages → Create a project
+```env
+# OpenAI API Key (required for AI deck generation)
+OPENAI_API_KEY=sk-your-key-here
 
-3. Choose "Upload assets" 
+# Server Configuration
+PORT=3001
+ALLOWED_ORIGIN=http://localhost:5173
+CLIENT_URL=http://localhost:5173
 
-4. Upload the entire `dist` folder contents
+# Stripe (required for payments)
+STRIPE_SECRET_KEY=sk_test_your_key_here
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
 
-5. Your site will be live with HTTPS automatically enabled (required for Device Orientation API)
+# Supabase (required for user management)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+```
 
-### Option 2: Git Integration (Recommended for updates)
+**Important:** Never commit `.env` files to Git!
 
-1. Push your code to GitHub/GitLab/Bitbucket
+## 🚢 Deployment
 
-2. In Cloudflare Dashboard → Pages → Create a project → Connect to Git
+### Frontend (Cloudflare Pages)
 
-3. Select your repository
-
+1. Push code to GitHub
+2. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) → Pages
+3. Create project → Connect to Git
 4. Build settings:
    - **Build command:** `npm run build`
    - **Build output directory:** `dist`
-   - **Root directory:** `/` (leave empty)
+5. Add environment variable: `VITE_API_BASE_URL` (your backend URL)
+6. Deploy!
 
-5. Click "Save and Deploy"
+See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for detailed instructions.
 
-6. Cloudflare will automatically deploy on every push to your main branch
+### Backend (Railway)
 
-### Option 3: Wrangler CLI
+1. Go to [Railway](https://railway.app) → New Project
+2. Deploy from GitHub → Select repository
+3. Set Root Directory to `server`
+4. Add environment variables (see above)
+5. Deploy!
 
-1. Install Wrangler (if not already installed):
-   ```bash
-   npm install -g wrangler
-   ```
+See [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md) for detailed instructions.
 
-2. Login to Cloudflare:
-   ```bash
-   wrangler login
-   ```
-
-3. Build and deploy:
-   ```bash
-   npm run build
-   wrangler pages deploy dist --project-name=forehead-charades
-   ```
-
-**Note:** HTTPS is automatically enabled on Cloudflare Pages, which is required for the Device Orientation API to work on iOS devices.
-
-## How to Play
+## 🎯 How to Play
 
 1. Select a deck from the home screen
 2. Place your phone on your forehead (landscape mode)
-3. Tilt forward (down) for CORRECT
-4. Tilt backward (up) for PASS
+3. Tilt forward (down) for **CORRECT** ✅
+4. Tilt backward (up) for **PASS** ⏭️
 5. Or use the manual buttons at the bottom
 6. Try to guess as many cards as possible in 60 seconds!
 
-## Technical Details
+## 💰 Monetization (Beta)
 
-- **Framework**: React 18 with Vite
-- **Styling**: Tailwind CSS
-- **State Management**: React Context API
-- **Routing**: React Router v6
-- **PWA**: Vite PWA Plugin
-- **Device API**: Device Orientation API (requires HTTPS)
+The app includes a **Party Pass** feature for unlimited AI deck generation:
 
-## iOS 13+ Permission Handling
+- **Price:** $4.99 USD (one-time payment)
+- **Duration:** 365 days (1 year)
+- **Benefits:** Unlimited AI deck generations
 
-iOS 13+ requires user interaction to access motion sensors. The app will prompt for permission when starting a game.
+Currently on `feature/monetization` branch. See [MONETIZATION_BETA.md](./MONETIZATION_BETA.md) and [STRIPE_SETUP_GUIDE.md](./STRIPE_SETUP_GUIDE.md) for details.
 
-## Browser Support
+## 🛠️ Tech Stack
+
+- **Frontend:**
+  - React 18
+  - Vite
+  - Tailwind CSS
+  - React Router v6
+  - Vite PWA Plugin
+
+- **Backend:**
+  - Express.js
+  - OpenAI API (gpt-4o-mini)
+  - Stripe (payments)
+  - Supabase (database)
+
+- **APIs:**
+  - Device Orientation API (tilt detection)
+  - Screen Orientation API (lock)
+  - Fullscreen API
+
+## 📱 Browser Support
 
 - Modern browsers with Device Orientation API support
-- HTTPS required for motion sensors (works on localhost for development)
+- **HTTPS required** for motion sensors (works on localhost for development)
 - Best experienced on mobile devices
+- iOS 13+ requires permission prompt for motion sensors
 
-## License
+## 📚 Documentation
+
+- [APPLICATION_DOCUMENTATION.md](./APPLICATION_DOCUMENTATION.md) - Complete application documentation
+- [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) - Deployment instructions
+- [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md) - Backend deployment guide
+- [STRIPE_SETUP_GUIDE.md](./STRIPE_SETUP_GUIDE.md) - Payment setup guide
+- [TILT_DETECTION_EXPLAINED.md](./TILT_DETECTION_EXPLAINED.md) - How tilt detection works
+- [SECURITY.md](./SECURITY.md) - Security measures
+- [AI_DECK_SETUP.md](./AI_DECK_SETUP.md) - AI deck generation setup
+- [MONETIZATION_BETA.md](./MONETIZATION_BETA.md) - Monetization features (beta)
+
+## 🔒 Security
+
+- API keys stored server-side only
+- Rate limiting on API endpoints
+- Input validation with Zod
+- Webhook signature verification
+- CORS protection
+- XSS protection
+
+See [SECURITY.md](./SECURITY.md) for details.
+
+## 🐛 Troubleshooting
+
+### Tilt Detection Not Working
+
+- Ensure HTTPS (required for Device Orientation API)
+- On iOS, grant motion sensor permission
+- Check browser console for errors
+- See [TILT_DETECTION_EXPLAINED.md](./TILT_DETECTION_EXPLAINED.md)
+
+### Backend Connection Issues
+
+- Verify `VITE_API_BASE_URL` is set correctly
+- Check backend is running and accessible
+- Verify CORS settings in backend
+- Check browser console for errors
+
+### Payment Issues
+
+- Verify Stripe keys are set correctly
+- Check webhook endpoint is configured
+- Verify Supabase connection
+- See [STRIPE_SETUP_GUIDE.md](./STRIPE_SETUP_GUIDE.md)
+
+## 📄 License
 
 MIT
+
+## 🙏 Credits
+
+Built with React, Vite, Tailwind CSS, OpenAI, Stripe, and Supabase.

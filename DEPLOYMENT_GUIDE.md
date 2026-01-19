@@ -1,18 +1,18 @@
-# Deployment Guide - No Docker Required
+# Deployment Guide
+
+Complete guide for deploying Forehead Charades to production.
+
+## Overview
+
+This app has two components:
+- **Frontend**: React/Vite app deployed to Cloudflare Pages
+- **Backend**: Express API server deployed to Railway (or similar)
+
+Both must be deployed and configured for the app to work fully.
 
 ## Quick Answer
 
-**You don't need Docker!** Here's why:
-
-### Frontend (Cloudflare Pages)
-- ✅ **Static files only** - No server, no Docker needed
-- ✅ Just upload `dist/` folder or connect Git
-- ✅ Cloudflare handles everything
-
-### Backend (AI API)
-- ✅ **Option 1**: Cloudflare Workers (serverless, no Docker)
-- ✅ **Option 2**: Railway/Render/Fly.io (run Node.js directly, no Docker)
-- ✅ **Option 3**: Self-hosted VPS (install Node.js, no Docker)
+**You don't need Docker!** Both frontend and backend can be deployed without Docker.
 
 ---
 

@@ -8,6 +8,7 @@ import Controls from './Controls'
 import CountdownOverlay from './CountdownOverlay'
 import FeedbackOverlay from './FeedbackOverlay'
 import PermissionTutorial from './PermissionTutorial'
+import TiltDebug from './TiltDebug'
 
 export default function GameEngine() {
   const { state, dispatch } = useGame()
@@ -15,7 +16,14 @@ export default function GameEngine() {
   const [feedback, setFeedback] = useState({ show: false, type: null })
   const [countdownActive, setCountdownActive] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
+  const [showDebug, setShowDebug] = useState(false) // Toggle with ?debug=true in URL
   const tiltEnabled = state.status === 'playing' && !state.hasPermission ? false : state.status === 'playing'
+
+  // Enable debug mode from URL parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setShowDebug(params.get('debug') === 'true')
+  }, [])
 
   const playSound = (type) => {
     // Create audio context for sound effects
@@ -302,6 +310,9 @@ export default function GameEngine() {
         onResume={() => dispatch({ type: 'RESUME_GAME' })}
         isPaused={state.status === 'paused'}
       />
+      {showDebug && state.status === 'playing' && (
+        <TiltDebug enabled={true} />
+      )}
     </div>
   )
 }

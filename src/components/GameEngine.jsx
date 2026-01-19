@@ -7,12 +7,14 @@ import Timer from './Timer'
 import Controls from './Controls'
 import CountdownOverlay from './CountdownOverlay'
 import FeedbackOverlay from './FeedbackOverlay'
+import PermissionTutorial from './PermissionTutorial'
 
 export default function GameEngine() {
   const { state, dispatch } = useGame()
   const navigate = useNavigate()
   const [feedback, setFeedback] = useState({ show: false, type: null })
   const [countdownActive, setCountdownActive] = useState(false)
+  const [showTutorial, setShowTutorial] = useState(false)
   const tiltEnabled = state.status === 'playing' && !state.hasPermission ? false : state.status === 'playing'
 
   const playSound = (type) => {
@@ -67,15 +69,21 @@ export default function GameEngine() {
 
   useEffect(() => {
     if (state.status === 'idle' && state.currentDeck) {
-      setCountdownActive(true)
-      dispatch({ type: 'START_COUNTDOWN' })
+      // Check if iOS and show tutorial first
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream
+      if (isIOS && !state.hasPermission) {
+        setShowTutorial(true)
+      } else {
+        setCountdownActive(true)
+        dispatch({ type: 'START_COUNTDOWN' })
+      }
     }
-  }, [state.currentDeck, state.status, dispatch])
+  }, [state.currentDeck, state.status, state.hasPermission, dispatch])
 
-  const handleCountdownComplete = async () => {
-    setCountdownActive(false)
+  const handleTutorialContinue = async () => {
+    setShowTutorial(false)
     
-    // Request permission if needed
+    // Request permission immediately on user click (required for iOS)
     if (!state.hasPermission) {
       if (typeof DeviceOrientationEvent.requestPermission === 'function') {
         const granted = await requestPermission()
@@ -90,7 +98,60 @@ export default function GameEngine() {
       }
     }
     
-    // Calibrate after permission is handled
+    // Resume countdown if we were in countdown, otherwise start it
+    if (state.status === 'counting_down') {
+      setCountdownActive(true)
+    } else if (state.status === 'idle') {
+      setCountdownActive(true)
+      dispatch({ type: 'START_COUNTDOWN' })
+    }
+    // If paused, just close tutorial and stay paused
+  }
+
+  const handleTutorialSkip = async () => {
+    setShowTutorial(false)
+    
+    // Request permission immediately on user click (required for iOS)
+    if (!state.hasPermission) {
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        const granted = await requestPermission()
+        if (granted) {
+          dispatch({ type: 'SET_PERMISSION', payload: true })
+        } else {
+          dispatch({ type: 'SET_PERMISSION', payload: false })
+        }
+      } else {
+        // Non-iOS devices don't need permission
+        dispatch({ type: 'SET_PERMISSION', payload: true })
+      }
+    }
+    
+    // Resume countdown if we were in countdown, otherwise start it
+    if (state.status === 'counting_down') {
+      setCountdownActive(true)
+    } else if (state.status === 'idle') {
+      setCountdownActive(true)
+      dispatch({ type: 'START_COUNTDOWN' })
+    }
+    // If paused, just close tutorial and stay paused
+  }
+
+  const handleShowTutorial = () => {
+    // Only allow showing tutorial if game hasn't started or is paused
+    if (state.status === 'idle' || state.status === 'paused' || state.status === 'counting_down') {
+      // Pause countdown if active
+      if (countdownActive) {
+        setCountdownActive(false)
+      }
+      setShowTutorial(true)
+    }
+  }
+
+  const handleCountdownComplete = () => {
+    setCountdownActive(false)
+    
+    // Permission should already be requested from tutorial button click
+    // Just start the game
     setTimeout(() => {
       calibrate()
       dispatch({ type: 'START_GAME' })
@@ -105,12 +166,40 @@ export default function GameEngine() {
     }
   }, [state.status, navigate])
 
+  if (showTutorial) {
+    return <PermissionTutorial onContinue={handleTutorialContinue} onSkip={handleTutorialSkip} />
+  }
+
   if (countdownActive) {
     return <CountdownOverlay onComplete={handleCountdownComplete} />
   }
 
   return (
     <div className="h-screen w-screen flex flex-col relative bg-black">
+      {/* Tutorial button in upper right */}
+      {(state.status === 'idle' || state.status === 'paused' || state.status === 'counting_down') && (
+        <button
+          onClick={handleShowTutorial}
+          className="absolute top-4 right-4 z-40 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 shadow-lg transition-all active:scale-95"
+          aria-label="Show tutorial"
+          title="Show tutorial"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </button>
+      )}
       <Timer timeLeft={state.timeLeft} />
       <CardDisplay word={state.currentCard} status={feedback.type} />
       <FeedbackOverlay show={feedback.show} type={feedback.type} />

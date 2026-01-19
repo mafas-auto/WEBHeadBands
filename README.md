@@ -41,11 +41,72 @@ npm run build
 
 The built files will be in the `dist` directory, ready for deployment to Cloudflare Pages.
 
+## Environment Variables
+
+For local development, copy `.env.example` to `.env.local` and add your credentials.
+
+For Cloudflare Pages deployment, set environment variables in:
+**Cloudflare Dashboard → Pages → Your Project → Settings → Environment Variables**
+
+See `DEPLOYMENT.md` for detailed instructions.
+
+**Important:** All client-side environment variables must be prefixed with `VITE_`
+
 ## Deployment to Cloudflare Pages
 
-1. Build the project: `npm run build`
-2. Upload the `dist` folder to Cloudflare Pages
-3. Ensure HTTPS is enabled (required for Device Orientation API)
+**📖 New to Vite?** See [VITE_DEPLOYMENT_GUIDE.md](./VITE_DEPLOYMENT_GUIDE.md) for a complete beginner-friendly guide.
+
+### Option 1: Direct Upload (Quickest)
+
+1. Build the project:
+   ```bash
+   npm run build
+   ```
+
+2. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) → Pages → Create a project
+
+3. Choose "Upload assets" 
+
+4. Upload the entire `dist` folder contents
+
+5. Your site will be live with HTTPS automatically enabled (required for Device Orientation API)
+
+### Option 2: Git Integration (Recommended for updates)
+
+1. Push your code to GitHub/GitLab/Bitbucket
+
+2. In Cloudflare Dashboard → Pages → Create a project → Connect to Git
+
+3. Select your repository
+
+4. Build settings:
+   - **Build command:** `npm run build`
+   - **Build output directory:** `dist`
+   - **Root directory:** `/` (leave empty)
+
+5. Click "Save and Deploy"
+
+6. Cloudflare will automatically deploy on every push to your main branch
+
+### Option 3: Wrangler CLI
+
+1. Install Wrangler (if not already installed):
+   ```bash
+   npm install -g wrangler
+   ```
+
+2. Login to Cloudflare:
+   ```bash
+   wrangler login
+   ```
+
+3. Build and deploy:
+   ```bash
+   npm run build
+   wrangler pages deploy dist --project-name=forehead-charades
+   ```
+
+**Note:** HTTPS is automatically enabled on Cloudflare Pages, which is required for the Device Orientation API to work on iOS devices.
 
 ## How to Play
 

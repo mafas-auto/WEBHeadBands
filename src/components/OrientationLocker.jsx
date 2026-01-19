@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-export default function OrientationLocker({ children }) {
+export default function OrientationLocker({ children, enforceLandscape = false }) {
   const [isPortrait, setIsPortrait] = useState(false)
 
   useEffect(() => {
@@ -18,7 +18,8 @@ export default function OrientationLocker({ children }) {
     }
   }, [])
 
-  if (isPortrait) {
+  // Only enforce landscape if enforceLandscape is true
+  if (enforceLandscape && isPortrait) {
     return (
       <div className="fixed inset-0 bg-black text-white flex flex-col items-center justify-center z-50 p-8">
         <div className="text-6xl mb-8 animate-spin">📱</div>

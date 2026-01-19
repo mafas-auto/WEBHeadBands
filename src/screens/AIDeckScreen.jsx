@@ -9,6 +9,7 @@ import {
   getRemainingPrompts,
   MAX_PROMPTS_PER_SESSION 
 } from '../utils/sessionLimiter'
+import { hasPartyPass, getDaysRemaining } from '../utils/paymentStatus'
 
 export default function AIDeckScreen() {
   const navigate = useNavigate()
@@ -18,11 +19,15 @@ export default function AIDeckScreen() {
   const [generatedDeck, setGeneratedDeck] = useState(null)
   const [promptCount, setPromptCount] = useState(0)
   const [remainingPrompts, setRemainingPrompts] = useState(MAX_PROMPTS_PER_SESSION)
+  const [hasPass, setHasPass] = useState(false)
+  const [daysRemaining, setDaysRemaining] = useState(0)
 
-  // Load prompt count on mount
+  // Load prompt count and payment status on mount
   useEffect(() => {
     setPromptCount(getPromptCount())
     setRemainingPrompts(getRemainingPrompts())
+    setHasPass(hasPartyPass())
+    setDaysRemaining(getDaysRemaining())
   }, [])
 
   const handleGenerate = async () => {
@@ -31,9 +36,9 @@ export default function AIDeckScreen() {
       return
     }
 
-    // Check session limit
+    // Check session limit (Party Pass users bypass this)
     if (hasReachedLimit()) {
-      setError(`You've reached the limit of ${MAX_PROMPTS_PER_SESSION} AI deck generations per session. Please refresh the page to start a new session.`)
+      setError(`You've reached the limit of ${MAX_PROMPTS_PER_SESSION} AI deck generations per session. Get Party Pass for unlimited generations!`)
       return
     }
 
@@ -85,15 +90,26 @@ export default function AIDeckScreen() {
         <p className="text-sm sm:text-base text-gray-400 mb-2">
           Describe a theme and AI will create a 25-card deck for you
         </p>
-        <div className="bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg px-3 py-2 text-sm">
-          <span className="text-blue-200">
-            {remainingPrompts > 0 ? (
-              <>Remaining: <strong>{remainingPrompts}</strong> of {MAX_PROMPTS_PER_SESSION} generations this session</>
-            ) : (
-              <>Limit reached: {MAX_PROMPTS_PER_SESSION}/{MAX_PROMPTS_PER_SESSION} generations used</>
-            )}
-          </span>
-        </div>
+        {hasPass ? (
+          <div className="bg-gradient-to-r from-purple-900 to-pink-900 bg-opacity-50 border border-purple-700 rounded-lg px-3 py-2 text-sm">
+            <span className="text-purple-200">
+              🎉 <strong>Party Pass Active</strong> - Unlimited generations
+              {daysRemaining > 0 && (
+                <span className="ml-2 text-xs">({daysRemaining} days remaining)</span>
+              )}
+            </span>
+          </div>
+        ) : (
+          <div className="bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg px-3 py-2 text-sm">
+            <span className="text-blue-200">
+              {remainingPrompts > 0 ? (
+                <>Remaining: <strong>{remainingPrompts}</strong> of {MAX_PROMPTS_PER_SESSION} generations this session</>
+              ) : (
+                <>Limit reached: {MAX_PROMPTS_PER_SESSION}/{MAX_PROMPTS_PER_SESSION} generations used</>
+              )}
+            </span>
+          </div>
+        )}
       </header>
 
       {!generatedDeck ? (
@@ -116,7 +132,15 @@ export default function AIDeckScreen() {
 
           {error && (
             <div className="bg-red-900 bg-opacity-50 border border-red-700 rounded-lg p-3 sm:p-4 mb-4">
-              <p className="text-red-200 text-sm sm:text-base">{error}</p>
+              <p className="text-red-200 text-sm sm:text-base mb-2">{error}</p>
+              {hasReachedLimit() && !hasPass && (
+                <button
+                  onClick={() => navigate('/party-pass')}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-2 px-4 rounded-lg text-sm active:scale-95 transition-all touch-manipulation"
+                >
+                  Get Party Pass - Unlimited Generations
+                </button>
+              )}
             </div>
           )}
 

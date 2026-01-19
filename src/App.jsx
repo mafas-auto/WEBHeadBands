@@ -6,6 +6,7 @@ import GameScreen from './screens/GameScreen'
 import ResultsScreen from './screens/ResultsScreen'
 import EditorScreen from './screens/EditorScreen'
 import AIDeckScreen from './screens/AIDeckScreen'
+import PartyPassScreen from './screens/PartyPassScreen'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
             <Route path="results" element={<ResultsScreen />} />
             <Route path="editor" element={<EditorScreen />} />
             <Route path="ai-deck" element={<AIDeckScreen />} />
+            <Route path="party-pass" element={<PartyPassScreen />} />
           </Route>
         </Routes>
       </BrowserRouter>

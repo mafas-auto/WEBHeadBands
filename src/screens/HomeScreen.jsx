@@ -1,19 +1,28 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGame } from '../context/GameContext'
 import { defaultDecks, loadCustomDecks } from '../data/decks'
 import DeckList from '../components/DeckList'
+import { hasPartyPass, getDaysRemaining } from '../utils/paymentStatus'
 
 export default function HomeScreen() {
   const navigate = useNavigate()
   const { dispatch } = useGame()
   const [showPremium, setShowPremium] = useState(false)
+  const [hasPass, setHasPass] = useState(false)
+  const [daysRemaining, setDaysRemaining] = useState(0)
   const customDecks = loadCustomDecks()
   
   // Show free decks when toggle is OFF, premium (AI decks) when ON
   const freeDecks = defaultDecks
   const premiumDecks = customDecks.filter(deck => deck.id?.startsWith('ai_'))
   const decksToShow = showPremium ? premiumDecks : freeDecks
+
+  // Check Party Pass status
+  useEffect(() => {
+    setHasPass(hasPartyPass())
+    setDaysRemaining(getDaysRemaining())
+  }, [])
 
   const handleSelectDeck = (deck) => {
     dispatch({ type: 'SET_DECK', payload: deck })
@@ -61,18 +70,28 @@ export default function HomeScreen() {
           <div className="text-center py-8 px-4">
             <div className="text-6xl mb-4">🤖</div>
             <p className="text-gray-400 mb-6">No AI decks yet. Create your first one!</p>
-            <button
-              onClick={() => navigate('/ai-deck')}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 active:from-purple-800 active:to-pink-800 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-lg text-base sm:text-lg md:text-xl active:scale-95 transition-all touch-manipulation min-h-[44px]"
-            >
-              Create AI Deck
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={() => navigate('/ai-deck')}
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 active:from-purple-800 active:to-pink-800 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-lg text-base sm:text-lg md:text-xl active:scale-95 transition-all touch-manipulation min-h-[44px]"
+              >
+                Create AI Deck
+              </button>
+              {!hasPass && (
+                <button
+                  onClick={() => navigate('/party-pass')}
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg text-sm sm:text-base active:scale-95 transition-all touch-manipulation min-h-[44px]"
+                >
+                  🎉 Get Party Pass - Unlimited Generations
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <>
             <DeckList decks={decksToShow} onSelectDeck={handleSelectDeck} />
             {showPremium && (
-              <div className="p-2 sm:p-4">
+              <div className="p-2 sm:p-4 space-y-2">
                 <button
                   onClick={() => navigate('/ai-deck')}
                   className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 active:from-purple-800 active:to-pink-800 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-lg text-base sm:text-lg md:text-xl active:scale-95 transition-all touch-manipulation min-h-[44px] flex items-center justify-center gap-2"
@@ -80,6 +99,14 @@ export default function HomeScreen() {
                   <span>🤖</span>
                   <span>Create New AI Deck</span>
                 </button>
+                {!hasPass && (
+                  <button
+                    onClick={() => navigate('/party-pass')}
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg text-sm sm:text-base active:scale-95 transition-all touch-manipulation min-h-[44px]"
+                  >
+                    🎉 Upgrade to Party Pass - Unlimited
+                  </button>
+                )}
               </div>
             )}
           </>

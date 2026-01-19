@@ -1,7 +1,10 @@
 /**
  * Session-based prompt limiter for AI deck generation
  * Uses sessionStorage to track prompts per browser session
+ * Party Pass users have unlimited generations
  */
+
+import { hasPartyPass } from './paymentStatus'
 
 const SESSION_STORAGE_KEY = 'ai_deck_prompts_count'
 const MAX_PROMPTS_PER_SESSION = 5
@@ -33,15 +36,25 @@ export function incrementPromptCount() {
 
 /**
  * Check if user has reached the session limit
+ * Party Pass users never hit the limit
  */
 export function hasReachedLimit() {
+  // Party Pass users have unlimited generations
+  if (hasPartyPass()) {
+    return false
+  }
   return getPromptCount() >= MAX_PROMPTS_PER_SESSION
 }
 
 /**
  * Get remaining prompts for this session
+ * Returns Infinity for Party Pass users
  */
 export function getRemainingPrompts() {
+  // Party Pass users have unlimited
+  if (hasPartyPass()) {
+    return Infinity
+  }
   const used = getPromptCount()
   return Math.max(0, MAX_PROMPTS_PER_SESSION - used)
 }

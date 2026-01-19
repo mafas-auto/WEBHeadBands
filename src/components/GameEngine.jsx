@@ -81,8 +81,6 @@ export default function GameEngine() {
   }, [state.currentDeck, state.status, state.hasPermission, dispatch])
 
   const handleTutorialContinue = async () => {
-    setShowTutorial(false)
-    
     // Request permission immediately on user click (required for iOS)
     if (!state.hasPermission) {
       if (typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -97,6 +95,11 @@ export default function GameEngine() {
         dispatch({ type: 'SET_PERMISSION', payload: true })
       }
     }
+    
+    setShowTutorial(false)
+    
+    // Request fullscreen on user interaction
+    await requestFullscreen()
     
     // Resume countdown if we were in countdown, otherwise start it
     if (state.status === 'counting_down') {
@@ -147,24 +150,27 @@ export default function GameEngine() {
     }
   }
 
-  // Fullscreen and orientation lock
+  // Request fullscreen before game starts (on user interaction)
+  const requestFullscreen = async () => {
+    try {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen()
+      } else if (document.documentElement.webkitRequestFullscreen) {
+        await document.documentElement.webkitRequestFullscreen()
+      } else if (document.documentElement.webkitEnterFullscreen) {
+        // iOS Safari
+        document.documentElement.webkitEnterFullscreen()
+      } else if (document.documentElement.msRequestFullscreen) {
+        await document.documentElement.msRequestFullscreen()
+      }
+    } catch (error) {
+      console.log('Fullscreen not available:', error)
+    }
+  }
+
+  // Fullscreen and orientation lock when game starts
   useEffect(() => {
     if (state.status === 'playing') {
-      // Try to enter fullscreen
-      const enterFullscreen = async () => {
-        try {
-          if (document.documentElement.requestFullscreen) {
-            await document.documentElement.requestFullscreen()
-          } else if (document.documentElement.webkitRequestFullscreen) {
-            await document.documentElement.webkitRequestFullscreen()
-          } else if (document.documentElement.msRequestFullscreen) {
-            await document.documentElement.msRequestFullscreen()
-          }
-        } catch (error) {
-          console.log('Fullscreen not available:', error)
-        }
-      }
-
       // Try to lock orientation
       const lockOrientation = async () => {
         try {
@@ -182,7 +188,6 @@ export default function GameEngine() {
         }
       }
 
-      enterFullscreen()
       lockOrientation()
     } else if (state.status === 'finished' || state.status === 'idle') {
       // Exit fullscreen when game ends
@@ -200,8 +205,11 @@ export default function GameEngine() {
     }
   }, [state.status])
 
-  const handleCountdownComplete = () => {
+  const handleCountdownComplete = async () => {
     setCountdownActive(false)
+    
+    // Request fullscreen before starting (requires user gesture)
+    await requestFullscreen()
     
     // Permission should already be requested from tutorial button click
     // Just start the game
@@ -267,14 +275,6 @@ export default function GameEngine() {
         <div className="absolute top-20 left-4 right-4 bg-yellow-600 text-black p-4 rounded-lg text-center">
           <p className="font-bold">Tilt detection requires permission</p>
           <p className="text-sm">Use the buttons below to play</p>
-        </div>
-      )}
-      {state.status === 'playing' && (
-        <div className="absolute top-4 left-4 bg-blue-600 text-white p-3 rounded-lg text-sm max-w-xs z-30">
-          <p className="font-semibold mb-1">💡 Lock Your Screen Rotation</p>
-          <p className="text-xs opacity-90">
-            Turn on orientation lock in your phone settings to prevent screen rotation during gameplay.
-          </p>
         </div>
       )}
     </div>

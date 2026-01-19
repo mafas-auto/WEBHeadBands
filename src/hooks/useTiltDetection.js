@@ -62,7 +62,7 @@ export function useTiltDetection(onCorrect, onPass, enabled = true) {
 
     // Forward tilt (looking down) = CORRECT
     // Beta increases when tilting forward (phone screen faces more downward)
-    if (tiltDifference > 35) {
+    if (tiltDifference > 40) {
       lastTiltTime.current = now
       onCorrectRef.current()
       return
@@ -70,8 +70,8 @@ export function useTiltDetection(onCorrect, onPass, enabled = true) {
 
     // Backward tilt (looking up) = PASS
     // Beta decreases when tilting backward (phone screen faces more upward)
-    // Made threshold less strict and more sensitive
-    if (tiltDifference < -30) {
+    // Slightly easier than correct to register
+    if (tiltDifference < -35) {
       lastTiltTime.current = now
       onPassRef.current()
       return

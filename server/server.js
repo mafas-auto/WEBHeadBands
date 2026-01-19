@@ -93,6 +93,9 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
+// Admin email for backdoor access (change this to your email)
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'filipmateja@example.com' // TODO: Change to your actual email
+
 // AI Deck Generation endpoint
 app.post('/api/generate-deck', async (req, res) => {
   try {
@@ -111,28 +114,35 @@ app.post('/api/generate-deck', async (req, res) => {
 
     const { prompt, userEmail } = validationResult.data
 
-    // Check premium status if email provided
-    if (userEmail && supabase) {
-      const { data: user } = await supabase
-        .from('users')
-        .select('is_premium, premium_expires_at')
-        .eq('email', userEmail)
-        .single()
+    // Admin bypass check (for testing)
+    if (userEmail === ADMIN_EMAIL) {
+      console.log('🔓 Admin bypass - unlimited access for:', userEmail)
+      // Skip premium check and rate limiting for admin
+      // Continue to AI generation
+    } else {
+      // Check premium status if email provided
+      if (userEmail && supabase) {
+        const { data: user } = await supabase
+          .from('users')
+          .select('is_premium, premium_expires_at')
+          .eq('email', userEmail)
+          .single()
 
-      if (user && user.is_premium) {
-        const expiresAt = user.premium_expires_at ? new Date(user.premium_expires_at) : null
-        const isExpired = expiresAt && expiresAt < new Date()
+        if (user && user.is_premium) {
+          const expiresAt = user.premium_expires_at ? new Date(user.premium_expires_at) : null
+          const isExpired = expiresAt && expiresAt < new Date()
 
-        if (isExpired) {
-          // Expired - treat as free user
-          // Continue with rate limiting below
+          if (isExpired) {
+            // Expired - treat as free user
+            // Continue with rate limiting below
+          } else {
+            // Premium user - skip rate limiting, allow unlimited
+            // Continue to AI generation
+          }
         } else {
-          // Premium user - skip rate limiting, allow unlimited
+          // Not premium - apply rate limiting (already applied via middleware)
           // Continue to AI generation
         }
-      } else {
-        // Not premium - apply rate limiting (already applied via middleware)
-        // Continue to AI generation
       }
     }
 

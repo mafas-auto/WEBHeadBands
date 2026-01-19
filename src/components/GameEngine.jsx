@@ -147,6 +147,59 @@ export default function GameEngine() {
     }
   }
 
+  // Fullscreen and orientation lock
+  useEffect(() => {
+    if (state.status === 'playing') {
+      // Try to enter fullscreen
+      const enterFullscreen = async () => {
+        try {
+          if (document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen()
+          } else if (document.documentElement.webkitRequestFullscreen) {
+            await document.documentElement.webkitRequestFullscreen()
+          } else if (document.documentElement.msRequestFullscreen) {
+            await document.documentElement.msRequestFullscreen()
+          }
+        } catch (error) {
+          console.log('Fullscreen not available:', error)
+        }
+      }
+
+      // Try to lock orientation
+      const lockOrientation = async () => {
+        try {
+          if (screen.orientation && screen.orientation.lock) {
+            await screen.orientation.lock('landscape')
+          } else if (screen.lockOrientation) {
+            screen.lockOrientation('landscape')
+          } else if (screen.mozLockOrientation) {
+            screen.mozLockOrientation('landscape')
+          } else if (screen.msLockOrientation) {
+            screen.msLockOrientation('landscape')
+          }
+        } catch (error) {
+          console.log('Orientation lock not available:', error)
+        }
+      }
+
+      enterFullscreen()
+      lockOrientation()
+    } else if (state.status === 'finished' || state.status === 'idle') {
+      // Exit fullscreen when game ends
+      try {
+        if (document.exitFullscreen) {
+          document.exitFullscreen()
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen()
+        } else if (document.msExitFullscreen) {
+          document.msExitFullscreen()
+        }
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+  }, [state.status])
+
   const handleCountdownComplete = () => {
     setCountdownActive(false)
     
@@ -214,6 +267,14 @@ export default function GameEngine() {
         <div className="absolute top-20 left-4 right-4 bg-yellow-600 text-black p-4 rounded-lg text-center">
           <p className="font-bold">Tilt detection requires permission</p>
           <p className="text-sm">Use the buttons below to play</p>
+        </div>
+      )}
+      {state.status === 'playing' && (
+        <div className="absolute top-4 left-4 bg-blue-600 text-white p-3 rounded-lg text-sm max-w-xs z-30">
+          <p className="font-semibold mb-1">💡 Lock Your Screen Rotation</p>
+          <p className="text-xs opacity-90">
+            Turn on orientation lock in your phone settings to prevent screen rotation during gameplay.
+          </p>
         </div>
       )}
     </div>

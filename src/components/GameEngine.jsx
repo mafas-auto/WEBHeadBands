@@ -219,6 +219,37 @@ export default function GameEngine() {
     }, 100)
   }
 
+  // Detect orientation changes and check if permission is still valid
+  useEffect(() => {
+    let orientationCheckTimeout
+    
+    const handleOrientationChange = () => {
+      // Wait a bit for orientation to settle
+      clearTimeout(orientationCheckTimeout)
+      orientationCheckTimeout = setTimeout(() => {
+        // If game is playing, check if we need to re-request permission
+        if (state.status === 'playing') {
+          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream
+          if (isIOS && !hasPermission) {
+            // Permission was lost - pause game and show tutorial to re-request
+            dispatch({ type: 'PAUSE_GAME' })
+            dispatch({ type: 'SET_PERMISSION', payload: false })
+            setShowTutorial(true)
+          }
+        }
+      }, 500)
+    }
+
+    window.addEventListener('orientationchange', handleOrientationChange)
+    window.addEventListener('resize', handleOrientationChange)
+
+    return () => {
+      clearTimeout(orientationCheckTimeout)
+      window.removeEventListener('orientationchange', handleOrientationChange)
+      window.removeEventListener('resize', handleOrientationChange)
+    }
+  }, [state.status, hasPermission, dispatch])
+
   useEffect(() => {
     if (state.status === 'finished') {
       setTimeout(() => {
@@ -271,12 +302,6 @@ export default function GameEngine() {
         onResume={() => dispatch({ type: 'RESUME_GAME' })}
         isPaused={state.status === 'paused'}
       />
-      {!hasPermission && state.status === 'playing' && (
-        <div className="absolute top-20 left-4 right-4 bg-yellow-600 text-black p-4 rounded-lg text-center">
-          <p className="font-bold">Tilt detection requires permission</p>
-          <p className="text-sm">Use the buttons below to play</p>
-        </div>
-      )}
     </div>
   )
 }

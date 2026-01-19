@@ -60,18 +60,21 @@ export function useTiltDetection(onCorrect, onPass, enabled = true) {
 
     const tiltDifference = beta - neutralBeta.current
 
+    // In landscape mode on forehead:
+    // Forward tilt (chin down, screen faces more upward) = CORRECT
+    // Backward tilt (chin up, screen faces more downward) = PASS
+    // Beta decreases when tilting forward (screen rotates up)
+    // Beta increases when tilting backward (screen rotates down)
+    
     // Forward tilt (looking down) = CORRECT
-    // Beta increases when tilting forward (phone screen faces more downward)
-    if (tiltDifference > 40) {
+    if (tiltDifference < -35) {
       lastTiltTime.current = now
       onCorrectRef.current()
       return
     }
 
     // Backward tilt (looking up) = PASS
-    // Beta decreases when tilting backward (phone screen faces more upward)
-    // Slightly easier than correct to register
-    if (tiltDifference < -35) {
+    if (tiltDifference > 40) {
       lastTiltTime.current = now
       onPassRef.current()
       return

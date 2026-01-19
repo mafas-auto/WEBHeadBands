@@ -5,6 +5,7 @@ import HomeScreen from './screens/HomeScreen'
 import GameScreen from './screens/GameScreen'
 import ResultsScreen from './screens/ResultsScreen'
 import EditorScreen from './screens/EditorScreen'
+import AIDeckScreen from './screens/AIDeckScreen'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
             <Route path="game" element={<GameScreen />} />
             <Route path="results" element={<ResultsScreen />} />
             <Route path="editor" element={<EditorScreen />} />
+            <Route path="ai-deck" element={<AIDeckScreen />} />
           </Route>
         </Routes>
       </BrowserRouter>

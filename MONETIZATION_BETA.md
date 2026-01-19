@@ -6,9 +6,9 @@ This branch contains monetization features that are **NOT** merged to main. It's
 
 ## What's Implemented
 
-### 1. Party Pass System
+### 1. Stripe Checkout Integration ✅
 
-**Price:** $5.00 USD (one-time payment)  
+**Price:** $4.99 USD (one-time payment)  
 **Duration:** 365 days (1 year)  
 **Benefits:**
 - ✅ Unlimited AI deck generations (no session limits)
@@ -16,16 +16,39 @@ This branch contains monetization features that are **NOT** merged to main. It's
 - ✅ All decks saved in your account
 - ✅ Access to all premium features
 
-### 2. Payment Status Management
+**Payment Flow:**
+- Stripe Checkout (hosted payment page)
+- Supports Apple Pay, Google Pay, Credit Cards
+- Secure payment processing
+- Webhook verification
+
+### 2. Supabase Database Integration ✅
+
+**File:** `server/supabase-schema.sql`
+
+- User management database
+- Stores payment status server-side
+- Tracks premium expiry dates
+- Row Level Security (RLS) enabled
+
+### 3. Backend Payment Verification ✅
+
+**Endpoints:**
+- `POST /api/create-checkout-session` - Creates Stripe Checkout
+- `GET /api/verify-payment` - Verifies payment completion
+- `POST /api/check-premium-status` - Checks user's premium status
+- `POST /api/webhook` - Stripe webhook handler
+
+### 4. Payment Status Management
 
 **File:** `src/utils/paymentStatus.js`
 
-- Stores Party Pass status in `localStorage`
+- Caches Party Pass status in `localStorage` (for performance)
+- Verifies with backend (Supabase) when email available
 - Tracks expiry date
-- Checks if pass is active and valid
 - Calculates days remaining
 
-**Note:** Currently client-side only. In production, this should be verified server-side.
+**Note:** Backend (Supabase) is the source of truth. localStorage is just a cache.
 
 ### 3. Session Limit Integration
 

@@ -7,6 +7,7 @@ import ResultsScreen from './screens/ResultsScreen'
 import EditorScreen from './screens/EditorScreen'
 import AIDeckScreen from './screens/AIDeckScreen'
 import PartyPassScreen from './screens/PartyPassScreen'
+import PaymentSuccessScreen from './screens/PaymentSuccessScreen'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
             <Route path="editor" element={<EditorScreen />} />
             <Route path="ai-deck" element={<AIDeckScreen />} />
             <Route path="party-pass" element={<PartyPassScreen />} />
+            <Route path="payment-success" element={<PaymentSuccessScreen />} />
           </Route>
         </Routes>
       </BrowserRouter>

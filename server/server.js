@@ -3,17 +3,32 @@ import rateLimit from 'express-rate-limit'
 import cors from 'cors'
 import { z } from 'zod'
 import dotenv from 'dotenv'
+import Stripe from 'stripe'
+import { createClient } from '@supabase/supabase-js'
 
 dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3001
 
+// Initialize Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+  apiVersion: '2024-11-20.acacia'
+})
+
+// Initialize Supabase
+const supabaseUrl = process.env.SUPABASE_URL
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null
+
 // Middleware
 app.use(cors({
   origin: process.env.ALLOWED_ORIGIN || 'http://localhost:5173',
   credentials: true
 }))
+
+// Stripe webhook needs raw body for signature verification
+app.use('/api/webhook', express.raw({ type: 'application/json' }))
 app.use(express.json())
 
 // Rate limiting: 100 requests per 15 minutes per IP
@@ -30,7 +45,7 @@ const limiter = rateLimit({
 
 app.use('/api/generate-deck', limiter)
 
-// Input validation schema
+// Input validation schema for AI deck generation
 const deckPromptSchema = z.object({
   prompt: z.string()
     .min(3, 'Prompt must be at least 3 characters')
@@ -43,7 +58,8 @@ const deckPromptSchema = z.object({
         return !blocked.some(pattern => val.toLowerCase().includes(pattern))
       },
       { message: 'Prompt contains potentially dangerous content' }
-    )
+    ),
+  userEmail: z.string().email().optional() // Optional email for premium status check
 })
 
 // OpenAI API configuration
@@ -93,7 +109,32 @@ app.post('/api/generate-deck', async (req, res) => {
       })
     }
 
-    const { prompt } = validationResult.data
+    const { prompt, userEmail } = validationResult.data
+
+    // Check premium status if email provided
+    if (userEmail && supabase) {
+      const { data: user } = await supabase
+        .from('users')
+        .select('is_premium, premium_expires_at')
+        .eq('email', userEmail)
+        .single()
+
+      if (user && user.is_premium) {
+        const expiresAt = user.premium_expires_at ? new Date(user.premium_expires_at) : null
+        const isExpired = expiresAt && expiresAt < new Date()
+
+        if (isExpired) {
+          // Expired - treat as free user
+          // Continue with rate limiting below
+        } else {
+          // Premium user - skip rate limiting, allow unlimited
+          // Continue to AI generation
+        }
+      } else {
+        // Not premium - apply rate limiting (already applied via middleware)
+        // Continue to AI generation
+      }
+    }
 
     // Call OpenAI API
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {

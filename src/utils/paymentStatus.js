@@ -1,35 +1,82 @@
 /**
  * Payment status management for Party Pass
- * Stores payment status in localStorage (client-side for now)
- * In production, this should be verified server-side
+ * Uses localStorage as cache, but verifies with backend
+ * Backend is the source of truth (Supabase database)
  */
 
 const PAYMENT_STORAGE_KEY = 'party_pass_status'
 const PAYMENT_EXPIRY_KEY = 'party_pass_expiry'
+const PAYMENT_EMAIL_KEY = 'party_pass_email'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
 
 /**
  * Check if user has active Party Pass
+ * Checks localStorage cache first, then verifies with backend if email available
  */
-export function hasPartyPass() {
+export async function hasPartyPass(email = null) {
   try {
+    // Check localStorage cache first (fast)
     const status = localStorage.getItem(PAYMENT_STORAGE_KEY)
     const expiry = localStorage.getItem(PAYMENT_EXPIRY_KEY)
     
-    if (!status || status !== 'active') {
-      return false
-    }
-    
-    // Check if expired
-    if (expiry) {
+    if (status === 'active' && expiry) {
       const expiryDate = new Date(expiry)
-      if (expiryDate < new Date()) {
-        // Expired, clear it
+      if (expiryDate > new Date()) {
+        // Cache says active and not expired
+        // If email provided, verify with backend (async, non-blocking)
+        if (email && API_BASE_URL) {
+          verifyWithBackend(email).catch(() => {
+            // If verification fails, trust cache
+          })
+        }
+        return true
+      } else {
+        // Expired in cache
         clearPartyPass()
         return false
       }
     }
-    
-    return true
+
+    // If email provided and cache says no, check backend
+    if (email && API_BASE_URL) {
+      return await verifyWithBackend(email)
+    }
+
+    return false
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Verify payment status with backend
+ */
+async function verifyWithBackend(email) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/check-premium-status`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email })
+    })
+
+    if (!response.ok) {
+      return false
+    }
+
+    const data = await response.json()
+
+    if (data.isPremium) {
+      // Update cache
+      activatePartyPass(365, data.expiresAt)
+      localStorage.setItem(PAYMENT_EMAIL_KEY, email)
+      return true
+    } else {
+      // Clear cache if backend says not premium
+      clearPartyPass()
+      return false
+    }
   } catch {
     return false
   }
@@ -38,11 +85,15 @@ export function hasPartyPass() {
 /**
  * Activate Party Pass (after successful payment)
  * @param {number} daysValid - Number of days the pass is valid (default: 365 for 1 year)
+ * @param {string} expiresAt - Optional ISO date string for expiry (from backend)
  */
-export function activatePartyPass(daysValid = 365) {
+export function activatePartyPass(daysValid = 365, expiresAt = null) {
   try {
-    const expiryDate = new Date()
-    expiryDate.setDate(expiryDate.getDate() + daysValid)
+    const expiryDate = expiresAt ? new Date(expiresAt) : (() => {
+      const date = new Date()
+      date.setDate(date.getDate() + daysValid)
+      return date
+    })()
     
     localStorage.setItem(PAYMENT_STORAGE_KEY, 'active')
     localStorage.setItem(PAYMENT_EXPIRY_KEY, expiryDate.toISOString())

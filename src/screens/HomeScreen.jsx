@@ -20,8 +20,14 @@ export default function HomeScreen() {
 
   // Check Party Pass status
   useEffect(() => {
-    setHasPass(hasPartyPass())
-    setDaysRemaining(getDaysRemaining())
+    const loadStatus = async () => {
+      const email = localStorage.getItem('party_pass_email')
+      const passStatus = await hasPartyPass(email)
+      setHasPass(passStatus)
+      setDaysRemaining(getDaysRemaining())
+    }
+    
+    loadStatus()
   }, [])
 
   const handleSelectDeck = (deck) => {

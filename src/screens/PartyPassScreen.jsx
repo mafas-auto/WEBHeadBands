@@ -2,42 +2,52 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { activatePartyPass } from '../utils/paymentStatus'
 
-const PARTY_PASS_PRICE = 5.00 // $5 USD
-const PARTY_PASS_DURATION = 365 // 1 year
+const PARTY_PASS_PRICE = 4.99 // $4.99 USD
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
 
 export default function PartyPassScreen() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [userEmail, setUserEmail] = useState('')
 
   const handlePurchase = async () => {
     setLoading(true)
     setError(null)
 
     try {
-      // TODO: Integrate with actual payment provider (Stripe, PayPal, etc.)
-      // For now, this is a mock payment flow
-      
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // Mock payment success
-      const paymentSuccess = true // In production, verify with payment provider
-      
-      if (paymentSuccess) {
-        // Activate Party Pass
-        activatePartyPass(PARTY_PASS_DURATION)
+      // Create Stripe Checkout Session
+      const response = await fetch(`${API_BASE_URL}/api/create-checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userEmail: userEmail || undefined
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to create checkout session')
+      }
+
+      const { url } = await response.json()
+
+      if (url) {
+        // Save email to localStorage for later use
+        if (userEmail) {
+          localStorage.setItem('party_pass_email', userEmail)
+        }
         
-        // Show success and redirect
-        alert('🎉 Party Pass activated! You now have unlimited AI deck generation!')
-        navigate('/')
+        // Redirect to Stripe Checkout
+        window.location.href = url
       } else {
-        setError('Payment failed. Please try again.')
+        throw new Error('No checkout URL received')
       }
     } catch (err) {
       setError(err.message || 'Payment processing failed. Please try again.')
       console.error('Payment Error:', err)
-    } finally {
       setLoading(false)
     }
   }
@@ -89,7 +99,28 @@ export default function PartyPassScreen() {
                 <span className="text-green-400 text-xl">✓</span>
                 <span>Access to all premium features</span>
               </li>
+              <li className="flex items-start gap-3">
+                <span className="text-green-400 text-xl">✓</span>
+                <span>Valid for 1 year (365 days)</span>
+              </li>
             </ul>
+          </div>
+
+          {/* Optional: Email input for faster checkout */}
+          <div className="bg-gray-800 rounded-lg p-4 sm:p-6 mb-4">
+            <label className="block text-sm sm:text-base font-semibold mb-2">
+              Email (optional - for faster checkout)
+            </label>
+            <input
+              type="email"
+              value={userEmail}
+              onChange={(e) => setUserEmail(e.target.value)}
+              placeholder="your@email.com"
+              className="w-full bg-gray-700 text-white rounded-lg p-3 sm:p-4 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs sm:text-sm text-gray-400 mt-2">
+              We'll use this to send your receipt and activate your Party Pass
+            </p>
           </div>
 
           {error && (

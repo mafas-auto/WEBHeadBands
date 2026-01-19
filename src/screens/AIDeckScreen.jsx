@@ -24,10 +24,18 @@ export default function AIDeckScreen() {
 
   // Load prompt count and payment status on mount
   useEffect(() => {
-    setPromptCount(getPromptCount())
-    setRemainingPrompts(getRemainingPrompts())
-    setHasPass(hasPartyPass())
-    setDaysRemaining(getDaysRemaining())
+    const loadStatus = async () => {
+      setPromptCount(getPromptCount())
+      setRemainingPrompts(getRemainingPrompts())
+      
+      // Check for email in localStorage (from payment)
+      const email = localStorage.getItem('party_pass_email')
+      const passStatus = await hasPartyPass(email)
+      setHasPass(passStatus)
+      setDaysRemaining(getDaysRemaining())
+    }
+    
+    loadStatus()
   }, [])
 
   const handleGenerate = async () => {
@@ -47,8 +55,11 @@ export default function AIDeckScreen() {
     setGeneratedDeck(null)
 
     try {
+      // Get email from localStorage if available
+      const email = localStorage.getItem('party_pass_email')
+      
       // API key is now handled server-side - no need to pass it from client
-      const deck = await generateAIDeck(prompt)
+      const deck = await generateAIDeck(prompt, email)
       setGeneratedDeck(deck)
       
       // Increment prompt count after successful generation

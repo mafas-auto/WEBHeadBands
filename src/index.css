@@ -13,6 +13,11 @@ html, body {
   overflow: hidden;
   -webkit-overflow-scrolling: touch;
   touch-action: none;
+  /* Prevent text selection on mobile */
+  -webkit-user-select: none;
+  user-select: none;
+  /* Prevent pull-to-refresh on mobile */
+  overscroll-behavior: none;
 }
 
 #root {

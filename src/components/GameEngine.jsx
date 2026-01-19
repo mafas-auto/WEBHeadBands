@@ -241,13 +241,13 @@ export default function GameEngine() {
       {(state.status === 'idle' || state.status === 'paused' || state.status === 'counting_down') && (
         <button
           onClick={handleShowTutorial}
-          className="absolute top-4 right-4 z-40 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 shadow-lg transition-all active:scale-95"
+          className="absolute top-2 right-2 sm:top-4 sm:right-4 z-40 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-full p-2 sm:p-3 shadow-lg transition-all active:scale-95 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Show tutorial"
           title="Show tutorial"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-6 w-6"
+            className="h-5 w-5 sm:h-6 sm:w-6"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"

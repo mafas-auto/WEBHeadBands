@@ -25,9 +25,10 @@ export default function CardDisplay({ word, status }) {
 
   return (
     <div className={`flex-1 flex items-center justify-center transition-colors duration-300 ${animation}`}>
-      <h1 className="text-10vw font-bold text-center px-8 break-words" style={{ 
+      <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl xl:text-10vw font-bold text-center px-4 sm:px-6 md:px-8 break-words max-w-full" style={{ 
         writingMode: 'horizontal-tb',
-        textOrientation: 'mixed'
+        textOrientation: 'mixed',
+        lineHeight: '1.2'
       }}>
         {word}
       </h1>

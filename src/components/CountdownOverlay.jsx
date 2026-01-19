@@ -18,7 +18,7 @@ export default function CountdownOverlay({ onComplete }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-      <div className="text-9xl font-bold animate-pulse">
+      <div className="text-7xl sm:text-8xl md:text-9xl font-bold animate-pulse">
         {count > 0 ? count : 'GO!'}
       </div>
     </div>

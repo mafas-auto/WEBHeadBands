@@ -1,14 +1,19 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 
-// Degrees of beta deviation from the calibrated neutral pose required to
-// trigger an action. Same magnitude both directions -- tune from real
-// device readings via ?debug=true, not guessed blind.
-const TILT_THRESHOLD_DEG = 25
+// Degrees of deviation from the calibrated neutral pose required to
+// trigger an action. Beta swings a large arc on "look down" (tracked
+// beta flipping to ~180 in earlier absolute-threshold testing); gamma
+// is the axis that actually moves on "look up" since beta barely
+// changes there near this device pose. Tune from real device readings
+// via ?debug=true, not guessed blind.
+const CORRECT_BETA_THRESHOLD_DEG = 90
+const PASS_GAMMA_THRESHOLD_DEG = 25
 
 export function useTiltDetection(onCorrect, onPass, enabled = true) {
   const [calibrated, setCalibrated] = useState(false)
   const [hasPermission, setHasPermission] = useState(false)
   const neutralBeta = useRef(null)
+  const neutralGamma = useRef(null)
   const lastTiltTime = useRef(0)
   const cooldownMs = 1000 // 1 second cooldown between tilts
   const onCorrectRef = useRef(onCorrect)
@@ -46,52 +51,61 @@ export function useTiltDetection(onCorrect, onPass, enabled = true) {
   const calibrate = () => {
     // Reset calibration on new game
     neutralBeta.current = null
+    neutralGamma.current = null
     setCalibrated(false)
+  }
+
+  const normalizeDelta = (delta) => {
+    if (delta > 180) return delta - 360
+    if (delta < -180) return delta + 360
+    return delta
   }
 
   const handleOrientation = useCallback((event) => {
     if (!enabled || !hasPermission) return
 
     const beta = event.beta // Front-to-back tilt in degrees (-180 to 180)
-    const gamma = event.gamma // Left-right tilt -- tracked for the debug overlay only, not used for detection
+    const gamma = event.gamma // Left-right tilt in degrees (-90 to 90)
 
     // Store current values for debugging
     setCurrentBeta(beta)
     setCurrentGamma(gamma)
 
     // Calibrate on first reading: whatever pose the phone is actually in
-    // when the round starts becomes the zero point. No assumption about
-    // what that angle "should" be -- that assumption was the original bug.
+    // when the round starts becomes the zero point for both axes. No
+    // assumption about what that angle "should" be -- that assumption
+    // (hardcoded absolute thresholds) was the original bug.
     if (neutralBeta.current === null && beta !== null && beta !== undefined) {
       neutralBeta.current = beta
+      neutralGamma.current = gamma !== null && gamma !== undefined ? gamma : null
       setCalibrated(true)
       return
     }
 
     if (neutralBeta.current === null || !calibrated) return
-    if (beta === null || beta === undefined) return
 
     const now = Date.now()
     if (now - lastTiltTime.current < cooldownMs) return
 
-    // Deviation from calibrated neutral, normalized to -180..180 so a
-    // wrap-around (e.g. neutral at 170, current at -170) doesn't read as
-    // a huge false delta.
-    let delta = beta - neutralBeta.current
-    if (delta > 180) delta -= 360
-    if (delta < -180) delta += 360
-
-    // Direction mapping (which sign is CORRECT vs PASS) is unverified
-    // against a real device -- confirm/flip via ?debug=true.
-    if (delta > TILT_THRESHOLD_DEG) {
-      lastTiltTime.current = now
-      onCorrectRef.current()
-      return
+    // CORRECT: look down -- beta swings a large arc from neutral.
+    if (beta !== null && beta !== undefined) {
+      const deltaBeta = normalizeDelta(beta - neutralBeta.current)
+      if (Math.abs(deltaBeta) > CORRECT_BETA_THRESHOLD_DEG) {
+        lastTiltTime.current = now
+        onCorrectRef.current()
+        return
+      }
     }
-    if (delta < -TILT_THRESHOLD_DEG) {
-      lastTiltTime.current = now
-      onPassRef.current()
-      return
+
+    // PASS: look up -- gamma moves away from neutral (beta stays near
+    // neutral for this motion, which is why it can't detect it alone).
+    if (gamma !== null && gamma !== undefined && neutralGamma.current !== null) {
+      const deltaGamma = normalizeDelta(gamma - neutralGamma.current)
+      if (Math.abs(deltaGamma) > PASS_GAMMA_THRESHOLD_DEG) {
+        lastTiltTime.current = now
+        onPassRef.current()
+        return
+      }
     }
   }, [enabled, hasPermission, calibrated])
 
@@ -113,6 +127,7 @@ export function useTiltDetection(onCorrect, onPass, enabled = true) {
     // Expose current values for debugging
     beta: currentBeta,
     gamma: currentGamma,
-    neutralBeta: neutralBeta.current
+    neutralBeta: neutralBeta.current,
+    neutralGamma: neutralGamma.current
   }
 }

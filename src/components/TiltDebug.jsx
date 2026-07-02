@@ -1,19 +1,23 @@
-const TILT_THRESHOLD_DEG = 25
+const CORRECT_BETA_THRESHOLD_DEG = 90
+const PASS_GAMMA_THRESHOLD_DEG = 25
 
-export default function TiltDebug({ beta, gamma, neutralBeta }) {
-  const delta = beta !== null && beta !== undefined && neutralBeta !== null && neutralBeta !== undefined
-    ? (() => {
-        let d = beta - neutralBeta
-        if (d > 180) d -= 360
-        if (d < -180) d += 360
-        return d
-      })()
+const normalizeDelta = (delta) => {
+  if (delta > 180) return delta - 360
+  if (delta < -180) return delta + 360
+  return delta
+}
+
+export default function TiltDebug({ beta, gamma, neutralBeta, neutralGamma }) {
+  const deltaBeta = beta !== null && beta !== undefined && neutralBeta !== null && neutralBeta !== undefined
+    ? normalizeDelta(beta - neutralBeta)
+    : null
+  const deltaGamma = gamma !== null && gamma !== undefined && neutralGamma !== null && neutralGamma !== undefined
+    ? normalizeDelta(gamma - neutralGamma)
     : null
 
   const getStatus = () => {
-    if (delta === null) return 'Neutral'
-    if (delta > TILT_THRESHOLD_DEG) return 'CORRECT'
-    if (delta < -TILT_THRESHOLD_DEG) return 'PASS'
+    if (deltaBeta !== null && Math.abs(deltaBeta) > CORRECT_BETA_THRESHOLD_DEG) return 'CORRECT'
+    if (deltaGamma !== null && Math.abs(deltaGamma) > PASS_GAMMA_THRESHOLD_DEG) return 'PASS'
     return 'Neutral'
   }
 
@@ -21,18 +25,20 @@ export default function TiltDebug({ beta, gamma, neutralBeta }) {
 
   return (
     <div className="fixed bottom-20 left-2 bg-black bg-opacity-80 text-white p-3 rounded-lg text-xs font-mono z-50 max-w-[220px]">
-      <div className="mb-2 font-bold text-yellow-400">TILT DEBUG (relative β)</div>
+      <div className="mb-2 font-bold text-yellow-400">TILT DEBUG (relative hybrid)</div>
 
       <div className="mb-2">
-        <div>Beta: {beta?.toFixed(1) ?? 'N/A'}°</div>
-        <div>Neutral β: {neutralBeta?.toFixed(1) ?? 'N/A'}°</div>
-        <div className={delta !== null && Math.abs(delta) > TILT_THRESHOLD_DEG ? 'text-green-400 font-bold' : ''}>
-          Δβ: {delta?.toFixed(1) ?? 'N/A'}° (threshold ±{TILT_THRESHOLD_DEG}°)
+        <div>Beta: {beta?.toFixed(1) ?? 'N/A'}° (neutral {neutralBeta?.toFixed(1) ?? 'N/A'}°)</div>
+        <div className={deltaBeta !== null && Math.abs(deltaBeta) > CORRECT_BETA_THRESHOLD_DEG ? 'text-green-400 font-bold' : ''}>
+          Δβ: {deltaBeta?.toFixed(1) ?? 'N/A'}° (CORRECT at ±{CORRECT_BETA_THRESHOLD_DEG}°)
         </div>
       </div>
 
-      <div className="mt-2 pt-2 border-t border-gray-600 text-gray-500">
-        <div>Gamma (unused): {gamma?.toFixed(1) ?? 'N/A'}°</div>
+      <div className="mt-2 pt-2 border-t border-gray-600">
+        <div>Gamma: {gamma?.toFixed(1) ?? 'N/A'}° (neutral {neutralGamma?.toFixed(1) ?? 'N/A'}°)</div>
+        <div className={deltaGamma !== null && Math.abs(deltaGamma) > PASS_GAMMA_THRESHOLD_DEG ? 'text-orange-400 font-bold' : ''}>
+          Δγ: {deltaGamma?.toFixed(1) ?? 'N/A'}° (PASS at ±{PASS_GAMMA_THRESHOLD_DEG}°)
+        </div>
       </div>
 
       <div className="mt-2 pt-2 border-t border-gray-600">

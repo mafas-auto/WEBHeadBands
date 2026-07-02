@@ -73,7 +73,7 @@ export default function GameEngine() {
     tiltEnabled
   )
   
-  const { requestPermission, calibrate, hasPermission, beta, gamma, neutralBeta } = tiltHook
+  const { requestPermission, calibrate, hasPermission, beta, gamma, neutralBeta, neutralGamma } = tiltHook
 
   useEffect(() => {
     if (state.status === 'idle' && state.currentDeck) {
@@ -326,6 +326,7 @@ export default function GameEngine() {
           beta={beta}
           gamma={gamma}
           neutralBeta={neutralBeta}
+          neutralGamma={neutralGamma}
         />
       )}
     </div>

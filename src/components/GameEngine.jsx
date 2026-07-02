@@ -285,8 +285,37 @@ export default function GameEngine() {
     return <CountdownOverlay onComplete={handleCountdownComplete} />
   }
 
+  const handleExit = () => {
+    dispatch({ type: 'RESET_GAME' })
+    navigate('/')
+  }
+
   return (
     <div className="h-screen w-screen flex flex-col relative bg-black">
+      {/* Exit button, upper left -- only real way out during playing/paused was letting the 60s timer run out */}
+      {(state.status === 'playing' || state.status === 'paused') && (
+        <button
+          onClick={handleExit}
+          className="absolute top-2 left-2 sm:top-4 sm:left-4 z-40 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-full p-2 sm:p-3 shadow-lg transition-all active:scale-95 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
+          aria-label="Exit game"
+          title="Exit game"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5 sm:h-6 sm:w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      )}
       {/* Tutorial button in upper right */}
       {(state.status === 'idle' || state.status === 'paused' || state.status === 'counting_down') && (
         <button

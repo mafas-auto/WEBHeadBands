@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 
+// Degrees of beta deviation from the calibrated neutral pose required to
+// trigger an action. Same magnitude both directions -- tune from real
+// device readings via ?debug=true, not guessed blind.
+const TILT_THRESHOLD_DEG = 25
+
 export function useTiltDetection(onCorrect, onPass, enabled = true) {
   const [calibrated, setCalibrated] = useState(false)
   const [hasPermission, setHasPermission] = useState(false)
   const neutralBeta = useRef(null)
-  const neutralGamma = useRef(null)
   const lastTiltTime = useRef(0)
   const cooldownMs = 1000 // 1 second cooldown between tilts
   const onCorrectRef = useRef(onCorrect)
@@ -42,7 +46,6 @@ export function useTiltDetection(onCorrect, onPass, enabled = true) {
   const calibrate = () => {
     // Reset calibration on new game
     neutralBeta.current = null
-    neutralGamma.current = null
     setCalibrated(false)
   }
 
@@ -50,46 +53,44 @@ export function useTiltDetection(onCorrect, onPass, enabled = true) {
     if (!enabled || !hasPermission) return
 
     const beta = event.beta // Front-to-back tilt in degrees (-180 to 180)
-    const gamma = event.gamma // Left-right tilt in degrees (-90 to 90)
-    
+    const gamma = event.gamma // Left-right tilt -- tracked for the debug overlay only, not used for detection
+
     // Store current values for debugging
     setCurrentBeta(beta)
     setCurrentGamma(gamma)
-    
-    // Calibrate on first reading
+
+    // Calibrate on first reading: whatever pose the phone is actually in
+    // when the round starts becomes the zero point. No assumption about
+    // what that angle "should" be -- that assumption was the original bug.
     if (neutralBeta.current === null && beta !== null && beta !== undefined) {
       neutralBeta.current = beta
-      neutralGamma.current = gamma !== null && gamma !== undefined ? gamma : -90
       setCalibrated(true)
       return
     }
 
     if (neutralBeta.current === null || !calibrated) return
+    if (beta === null || beta === undefined) return
 
     const now = Date.now()
     if (now - lastTiltTime.current < cooldownMs) return
 
-    // Hybrid approach to handle gimbal lock:
-    // In landscape mode on forehead:
-    // - Neutral: γ ≈ -90°, β ≈ 0°
-    // - PASS (Look Up): γ moves from -90° towards 0° (screen faces ceiling)
-    // - CORRECT (Look Down): γ stays at -90°, but β flips to ~180° (screen faces floor)
+    // Deviation from calibrated neutral, normalized to -180..180 so a
+    // wrap-around (e.g. neutral at 170, current at -170) doesn't read as
+    // a huge false delta.
+    let delta = beta - neutralBeta.current
+    if (delta > 180) delta -= 360
+    if (delta < -180) delta += 360
 
-    // 1. PASS: You look up at the ceiling
-    // Gamma moves from -90 towards 0.
-    // Threshold: If gamma is flatter than -50 degrees
-    if (gamma !== null && gamma !== undefined && gamma > -50 && gamma < 0) {
-      lastTiltTime.current = now
-      onPassRef.current()
-      return
-    }
-
-    // 2. CORRECT: You look down at the floor
-    // Gamma gets stuck at -90, but Beta flips to +/- 180 when screen faces down.
-    // Threshold: If Beta is upside down (greater than 140 or less than -140)
-    if (beta !== null && beta !== undefined && Math.abs(beta) > 140) {
+    // Direction mapping (which sign is CORRECT vs PASS) is unverified
+    // against a real device -- confirm/flip via ?debug=true.
+    if (delta > TILT_THRESHOLD_DEG) {
       lastTiltTime.current = now
       onCorrectRef.current()
+      return
+    }
+    if (delta < -TILT_THRESHOLD_DEG) {
+      lastTiltTime.current = now
+      onPassRef.current()
       return
     }
   }, [enabled, hasPermission, calibrated])
@@ -112,7 +113,6 @@ export function useTiltDetection(onCorrect, onPass, enabled = true) {
     // Expose current values for debugging
     beta: currentBeta,
     gamma: currentGamma,
-    neutralBeta: neutralBeta.current,
-    neutralGamma: neutralGamma.current
+    neutralBeta: neutralBeta.current
   }
 }

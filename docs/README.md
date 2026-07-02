@@ -77,3 +77,4 @@ This folder contains the core documentation needed to understand and operate For
 
 **Remember**: This is a web-based party game with low infrastructure costs and high profit margins. Focus on user acquisition and conversion optimization for sustainable growth.
 
+

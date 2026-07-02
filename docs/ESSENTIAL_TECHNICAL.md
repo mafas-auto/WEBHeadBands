@@ -101,3 +101,4 @@ See full docs:
 - `STRIPE_SETUP_GUIDE.md` - Payment setup
 - `TILT_DETECTION_EXPLAINED.md` - Tilt detection details
 
+

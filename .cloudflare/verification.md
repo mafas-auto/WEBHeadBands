@@ -37,3 +37,4 @@ ONLY files from `dist/` folder:
    - Should see: `<script src="/assets/index-XXXXX.js">`
    - Should NOT see: `<script src="/src/main.jsx">`
 
+

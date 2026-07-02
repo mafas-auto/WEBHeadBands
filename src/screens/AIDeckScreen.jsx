@@ -1,15 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { generateAIDeck } from '../services/aiDeckGenerator'
 import { saveCustomDeck } from '../data/decks'
-import { 
-  getPromptCount, 
-  incrementPromptCount, 
-  hasReachedLimit, 
-  getRemainingPrompts,
-  MAX_PROMPTS_PER_SESSION 
-} from '../utils/sessionLimiter'
-import { hasPartyPass, getDaysRemaining } from '../utils/paymentStatus'
 
 export default function AIDeckScreen() {
   const navigate = useNavigate()
@@ -17,36 +9,10 @@ export default function AIDeckScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [generatedDeck, setGeneratedDeck] = useState(null)
-  const [promptCount, setPromptCount] = useState(0)
-  const [remainingPrompts, setRemainingPrompts] = useState(MAX_PROMPTS_PER_SESSION)
-  const [hasPass, setHasPass] = useState(false)
-  const [daysRemaining, setDaysRemaining] = useState(0)
-
-  // Load prompt count and payment status on mount
-  useEffect(() => {
-    const loadStatus = async () => {
-      setPromptCount(getPromptCount())
-      setRemainingPrompts(getRemainingPrompts())
-      
-      // Check for email in localStorage (from payment)
-      const email = localStorage.getItem('party_pass_email')
-      const passStatus = await hasPartyPass(email)
-      setHasPass(passStatus)
-      setDaysRemaining(getDaysRemaining())
-    }
-    
-    loadStatus()
-  }, [])
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
       setError('Please enter a theme or description')
-      return
-    }
-
-    // Check session limit (Party Pass users bypass this)
-    if (hasReachedLimit()) {
-      setError(`You've reached the limit of ${MAX_PROMPTS_PER_SESSION} AI deck generations per session. Get Party Pass for unlimited generations!`)
       return
     }
 
@@ -55,17 +21,8 @@ export default function AIDeckScreen() {
     setGeneratedDeck(null)
 
     try {
-      // Get email from localStorage if available
-      const email = localStorage.getItem('party_pass_email')
-      
-      // API key is now handled server-side - no need to pass it from client
-      const deck = await generateAIDeck(prompt, email)
+      const deck = await generateAIDeck(prompt)
       setGeneratedDeck(deck)
-      
-      // Increment prompt count after successful generation
-      const newCount = incrementPromptCount()
-      setPromptCount(newCount)
-      setRemainingPrompts(getRemainingPrompts())
     } catch (err) {
       setError(err.message || 'Failed to generate deck. Please try again.')
       console.error('AI Deck Generation Error:', err)
@@ -76,8 +33,6 @@ export default function AIDeckScreen() {
 
   const handleSave = () => {
     if (!generatedDeck) return
-
-    // Save to localStorage (persists across sessions)
     saveCustomDeck(generatedDeck)
     alert('Deck saved successfully!')
     navigate('/')
@@ -101,26 +56,6 @@ export default function AIDeckScreen() {
         <p className="text-sm sm:text-base text-gray-400 mb-2">
           Describe a theme and AI will create a 25-card deck for you
         </p>
-        {hasPass ? (
-          <div className="bg-gradient-to-r from-purple-900 to-pink-900 bg-opacity-50 border border-purple-700 rounded-lg px-3 py-2 text-sm">
-            <span className="text-purple-200">
-              🎉 <strong>Party Pass Active</strong> - Unlimited generations
-              {daysRemaining > 0 && (
-                <span className="ml-2 text-xs">({daysRemaining} days remaining)</span>
-              )}
-            </span>
-          </div>
-        ) : (
-          <div className="bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg px-3 py-2 text-sm">
-            <span className="text-blue-200">
-              {remainingPrompts > 0 ? (
-                <>Remaining: <strong>{remainingPrompts}</strong> of {MAX_PROMPTS_PER_SESSION} generations this session</>
-              ) : (
-                <>Limit reached: {MAX_PROMPTS_PER_SESSION}/{MAX_PROMPTS_PER_SESSION} generations used</>
-              )}
-            </span>
-          </div>
-        )}
       </header>
 
       {!generatedDeck ? (
@@ -143,22 +78,14 @@ export default function AIDeckScreen() {
 
           {error && (
             <div className="bg-red-900 bg-opacity-50 border border-red-700 rounded-lg p-3 sm:p-4 mb-4">
-              <p className="text-red-200 text-sm sm:text-base mb-2">{error}</p>
-              {hasReachedLimit() && !hasPass && (
-                <button
-                  onClick={() => navigate('/party-pass')}
-                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-2 px-4 rounded-lg text-sm active:scale-95 transition-all touch-manipulation"
-                >
-                  Get Party Pass - Unlimited Generations
-                </button>
-              )}
+              <p className="text-red-200 text-sm sm:text-base">{error}</p>
             </div>
           )}
 
           <div className="flex gap-3 sm:gap-4">
             <button
               onClick={handleGenerate}
-              disabled={loading || !prompt.trim() || hasReachedLimit()}
+              disabled={loading || !prompt.trim()}
               className="flex-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-700 disabled:text-gray-400 text-white font-bold py-3 sm:py-4 px-6 rounded-lg text-base sm:text-lg active:scale-95 transition-all touch-manipulation min-h-[44px] disabled:cursor-not-allowed"
             >
               {loading ? (
@@ -237,4 +164,3 @@ export default function AIDeckScreen() {
     </div>
   )
 }
-

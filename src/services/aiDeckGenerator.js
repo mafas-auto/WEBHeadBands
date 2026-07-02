@@ -5,7 +5,7 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
 
-export async function generateAIDeck(userPrompt, userEmail = null) {
+export async function generateAIDeck(userPrompt) {
   if (!userPrompt || userPrompt.trim().length === 0) {
     throw new Error('Please provide a theme or description for your deck')
   }
@@ -19,18 +19,14 @@ export async function generateAIDeck(userPrompt, userEmail = null) {
     throw new Error('Prompt must be less than 200 characters')
   }
 
-  // Get email from localStorage if available
-  const email = userEmail || localStorage.getItem('party_pass_email')
-
   try {
     const response = await fetch(`${API_BASE_URL}/api/generate-deck`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ 
-        prompt: userPrompt.trim(),
-        userEmail: email || undefined
+      body: JSON.stringify({
+        prompt: userPrompt.trim()
       })
     })
 

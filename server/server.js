@@ -3,23 +3,11 @@ import rateLimit from 'express-rate-limit'
 import cors from 'cors'
 import { z } from 'zod'
 import dotenv from 'dotenv'
-import Stripe from 'stripe'
-import { createClient } from '@supabase/supabase-js'
 
 dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3001
-
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-11-20.acacia'
-})
-
-// Initialize Supabase
-const supabaseUrl = process.env.SUPABASE_URL
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null
 
 // Middleware
 app.use(cors({
@@ -27,8 +15,6 @@ app.use(cors({
   credentials: true
 }))
 
-// Stripe webhook needs raw body for signature verification
-app.use('/api/webhook', express.raw({ type: 'application/json' }))
 app.use(express.json())
 
 // Rate limiting: 100 requests per 15 minutes per IP
@@ -58,8 +44,7 @@ const deckPromptSchema = z.object({
         return !blocked.some(pattern => val.toLowerCase().includes(pattern))
       },
       { message: 'Prompt contains potentially dangerous content' }
-    ),
-  userEmail: z.string().email().optional() // Optional email for premium status check
+    )
 })
 
 // OpenAI API configuration
@@ -69,7 +54,7 @@ if (!OPENAI_API_KEY) {
   process.exit(1)
 }
 
-const SYSTEM_PROMPT = `You are a card deck generator for a charades-style game called "Forehead Charades". 
+const SYSTEM_PROMPT = `You are a card deck generator for a charades-style game called "Forehead Charades".
 Your task is to create a deck of exactly 25 cards based on a user's theme or description.
 
 Requirements:
@@ -93,15 +78,12 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-// Admin email for backdoor access (change this to your email)
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'filipmateja@example.com' // TODO: Change to your actual email
-
 // AI Deck Generation endpoint
 app.post('/api/generate-deck', async (req, res) => {
   try {
     // Validate input
     const validationResult = deckPromptSchema.safeParse(req.body)
-    
+
     if (!validationResult.success) {
       return res.status(400).json({
         error: 'Invalid input',
@@ -112,39 +94,7 @@ app.post('/api/generate-deck', async (req, res) => {
       })
     }
 
-    const { prompt, userEmail } = validationResult.data
-
-    // Admin bypass check (for testing)
-    if (userEmail === ADMIN_EMAIL) {
-      console.log('🔓 Admin bypass - unlimited access for:', userEmail)
-      // Skip premium check and rate limiting for admin
-      // Continue to AI generation
-    } else {
-      // Check premium status if email provided
-      if (userEmail && supabase) {
-        const { data: user } = await supabase
-          .from('users')
-          .select('is_premium, premium_expires_at')
-          .eq('email', userEmail)
-          .single()
-
-        if (user && user.is_premium) {
-          const expiresAt = user.premium_expires_at ? new Date(user.premium_expires_at) : null
-          const isExpired = expiresAt && expiresAt < new Date()
-
-          if (isExpired) {
-            // Expired - treat as free user
-            // Continue with rate limiting below
-          } else {
-            // Premium user - skip rate limiting, allow unlimited
-            // Continue to AI generation
-          }
-        } else {
-          // Not premium - apply rate limiting (already applied via middleware)
-          // Continue to AI generation
-        }
-      }
-    }
+    const { prompt } = validationResult.data
 
     // Call OpenAI API
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -173,7 +123,7 @@ app.post('/api/generate-deck', async (req, res) => {
     if (!openaiResponse.ok) {
       const errorData = await openaiResponse.json().catch(() => ({}))
       console.error('OpenAI API Error:', errorData)
-      
+
       // Don't expose internal API errors to client
       return res.status(500).json({
         error: 'Failed to generate deck. Please try again later.'
@@ -251,9 +201,8 @@ app.post('/api/generate-deck', async (req, res) => {
 })
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Secure API server running on port ${PORT}`)
+  console.log(`🚀 API server running on port ${PORT}`)
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`)
   console.log(`🔒 Rate limit: 100 requests per 15 minutes per IP`)
   console.log(`🌐 Listening on 0.0.0.0:${PORT}`)
 })
-
